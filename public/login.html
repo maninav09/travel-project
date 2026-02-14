@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login | Routes-connect</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;600;700&family=Playfair+Display:wght@500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="login.css" />
+  </head>
+  <body>
+    <a class="home-corner" href="index.html">Home</a>
+    
+    <main class="auth">
+      <section class="auth-hero">
+        <p class="eyebrow">Welcome back</p>
+        <h1>Sign in to your travel hub</h1>
+        <p class="subtext">
+          Plan smarter routes, save your favorite journeys, and unlock curated
+          travel tips across India.
+        </p>
+
+        <div class="social-row">
+          <a
+            class="btn social google"
+            href="https://accounts.google.com/"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Sign in with Google
+          </a>
+          <a
+            class="btn social facebook"
+            href="https://www.facebook.com/"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Sign in with Facebook
+          </a>
+        </div>
+
+        <div class="divider"><span>or</span></div>
+
+        <div class="cta-row">
+          <button class="btn primary" type="button" data-auth-open="signin">Sign In</button>
+          <button class="btn ghost" type="button" data-auth-open="signup">Sign Up</button>
+        </div>
+      </section>
+    </main>
+
+    <div class="modal is-hidden" data-modal="auth" role="dialog" aria-modal="true">
+      <div class="modal-backdrop" data-close></div>
+      <div class="modal-card">
+        <header class="modal-header">
+          <h2 class="modal-title" data-title>Sign In</h2>
+          <button class="btn ghost" type="button" data-close>Close</button>
+        </header>
+
+        <form class="modal-form" data-form="auth">
+          <p class="form-error" data-auth-error></p>
+          <label data-field="name">
+            <span class="label-text">Name (for Sign Up)</span>
+            <input type="text" name="name" placeholder="Your name" />
+          </label>
+          <label data-field="email">
+            <span class="label-text">Email address</span>
+            <input type="email" name="email" placeholder="you@example.com" required />
+          </label>
+          <label data-field="password">
+            <span class="label-text">Password</span>
+            <input type="password" name="password" placeholder="••••••••" required />
+          </label>
+          <label data-field="profileImage">
+            <span class="label-text">Profile Image (optional)</span>
+            <input type="file" name="profileImage" accept="image/*" />
+          </label>
+          <div class="profile-preview is-hidden" data-profile-preview>
+            <img class="profile-preview-img" data-profile-img alt="Profile preview" />
+            <span>Tap to enlarge</span>
+          </div>
+          <button class="btn primary full" type="submit">Continue</button>
+        </form>
+      </div>
+    </div>
+    <div class="image-lightbox is-hidden" data-image-lightbox>
+      <div class="lightbox-backdrop" data-lightbox-close></div>
+      <div class="lightbox-card">
+        <img class="lightbox-img" data-lightbox-img alt="Profile preview large" />
+      </div>
+    </div>
+
+    <footer class="site-footer">
+      <div class="footer-left">
+        <p><strong>Email:</strong> hello@routes-connect.com</p>
+        <p><strong>Contact:</strong> +91 98765 43210</p>
+        <p><strong>Address:</strong> Connaught Place, New Delhi, India</p>
+      </div>
+      <div class="footer-center">
+        © 2026 Routes-connect. All rights reserved.
+      </div>
+      <div class="footer-right">
+        <a
+          class="social-link"
+          href="https://www.facebook.com/"
+          target="_blank"
+          rel="noreferrer"
+          aria-label="Facebook"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M13.5 9H15V6h-1.5C11.6 6 10 7.6 10 9.5V11H8v3h2v6h3v-6h2.2l.3-3H13v-1.4c0-.4.1-.6.5-.6z"
+            />
+          </svg>
+        </a>
+        <a
+          class="social-link"
+          href="https://www.instagram.com/"
+          target="_blank"
+          rel="noreferrer"
+          aria-label="Instagram"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M7 3h10a4 4 0 0 1 4 4v10a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V7a4 4 0 0 1 4-4zm10 2H7a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm-5 3.5A4.5 4.5 0 1 1 7.5 13 4.5 4.5 0 0 1 12 8.5zm0 2A2.5 2.5 0 1 0 14.5 13 2.5 2.5 0 0 0 12 10.5zm5-2.9a1 1 0 1 1-1-1 1 1 0 0 1 1 1z"
+            />
+          </svg>
+        </a>
+        <a
+          class="social-link"
+          href="https://twitter.com/"
+          target="_blank"
+          rel="noreferrer"
+          aria-label="Twitter"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M19.9 7.4c.1 3.8-2.7 8.1-8.1 8.1-1.6 0-3-.5-4.2-1.3h.6c1.3 0 2.5-.4 3.5-1.2-1.2 0-2.3-.8-2.6-2 .3 0 .6 0 .9-.1-1.3-.3-2.2-1.5-2.2-2.8.4.2.9.3 1.4.3-1.2-.8-1.6-2.3-.9-3.6 1.4 1.7 3.4 2.7 5.7 2.8-.4-1.7 1.3-3.2 3-2.5.5-.1 1-.4 1.4-.7-.2.5-.6 1-1.1 1.3.5 0 .9-.2 1.3-.3-.3.5-.7.9-1.2 1.2z"
+            />
+          </svg>
+        </a>
+      </div>
+    </footer>
+
+    <script src="redirect.js"></script>
+    <script src="login.js"></script>
+    <button class="floating-theme" type="button" data-theme-toggle aria-label="Toggle theme">
+      <span class="floating-orb"></span>
+      <span class="floating-label">Dark mode</span>
+    </button>
+    <script src="theme.js"></script>
+  </body>
+</html>
+
+

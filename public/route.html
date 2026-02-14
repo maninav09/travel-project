@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Route Planner | Routes-connect</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;600;700&family=Playfair+Display:wght@500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="route.css" />
+  </head>
+  <body class="route-shell">
+    <div class="bg-layer bg-layer-a" aria-hidden="true"></div>
+    <div class="bg-layer bg-layer-b" aria-hidden="true"></div>
+    <div class="bg-grid" aria-hidden="true"></div>
+    <header class="planner-header">
+      <div class="header-actions">
+        <a class="back-link" href="index.html">Back to Home</a>
+      </div>
+      <div class="title-block">
+        <p class="eyebrow">Route Planner</p>
+        <h1>Map, stays, food, and experiences</h1>
+        <div class="hero-pills">
+          <span class="hero-pill" data-stat-mode>Mode: Train</span>
+          <span class="hero-pill" data-stat-duration>Duration: --</span>
+          <span class="hero-pill" data-stat-weather>Weather: --</span>
+        </div>
+      </div>
+    </header>
+
+    <main class="planner-grid">
+      <section class="panel map-panel reveal">
+        <div class="map-header">
+          <h2>Route map</h2>
+          <span class="map-note" data-map-note>Search a route to load the map</span>
+        </div>
+        <div class="map-frame is-empty" data-map-wrapper>
+          <div class="map-halo" aria-hidden="true"></div>
+          <p class="map-placeholder">Map will appear here after search.</p>
+          <iframe
+            title="Route map"
+            loading="lazy"
+            referrerpolicy="no-referrer-when-downgrade"
+            data-map-frame
+          ></iframe>
+        </div>
+        <div class="route-summary" data-summary>
+          Enter a route on the home page to load details here.
+        </div>
+        <div class="weather-card" data-weather-card>
+          <div class="weather-title">Weather snapshot</div>
+          <div class="weather-body" data-weather-body>Search a route to see the forecast.</div>
+        </div>
+        <div class="mode-row" role="group" aria-label="Travel modes">
+          <button class="mode-btn" data-mode="Train" type="button"><span class="mode-icon" aria-hidden="true">&#128646;</span><span>Train</span></button>
+          <button class="mode-btn" data-mode="Bus" type="button"><span class="mode-icon" aria-hidden="true">&#128652;</span><span>Bus</span></button>
+          <button class="mode-btn" data-mode="Cab" type="button"><span class="mode-icon" aria-hidden="true">&#128661;</span><span>Cab</span></button>
+          <button class="mode-btn" data-mode="Flight" type="button"><span class="mode-icon" aria-hidden="true">&#9992;</span><span>Flight</span></button>
+        </div>
+        <div class="train-card is-hidden" data-train-card>
+          <div class="train-title">Train options</div>
+          <div class="train-body" data-train-body>Choose Train to see timetable, classes, and platform.</div>
+        </div>
+        <div class="train-card is-hidden" data-bus-card>
+          <div class="train-title">Bus options</div>
+          <div class="train-body" data-bus-body>Choose Bus to see bus operators and timings.</div>
+        </div>
+        <div class="train-card is-hidden" data-cab-card>
+          <div class="train-title">Cab options</div>
+          <div class="train-body" data-cab-body>Choose Cab to see cabs and driver details.</div>
+        </div>
+        <div class="cost-card" data-cost-card>
+          <div class="cost-title">Cost comparison</div>
+          <div class="cost-body" data-cost-body>Search a route to compare cab, train, and bus.</div>
+        </div>
+        <div class="story-card" data-story>
+          <div class="story-title">Route story</div>
+          <p>Search a route to unlock a curated travel narrative.</p>
+        </div>
+      </section>
+
+      <section class="panel info-panel reveal">
+        <div class="cards-header">
+          <div>
+            <h2>Route essentials</h2>
+            <p class="essentials-subtitle">Everything important for this journey in one place.</p>
+          </div>
+        </div>
+        <div class="action-buttons">
+          <button class="action-btn" type="button" data-hotels-btn>Hotels & Restaurants</button>
+          <button class="action-btn" type="button" data-food-corners-btn>Food Corners on Route</button>
+          <button class="action-btn" type="button" data-famous-btn>Famous Places</button>
+          <button class="action-btn" type="button" data-ai-plan-btn>AI Trip Plan</button>
+          <button class="action-btn" type="button" data-hidden-gems-btn>Hidden Gems</button>
+          <button class="action-btn" type="button" data-budget-splitter-btn>Smart Budget Splitter</button>
+          <button class="action-btn" type="button" data-safety-dashboard-btn>Safety Dashboard</button>
+          <button class="action-btn" type="button" data-last-trip-toggle>Last Trip Review</button>
+          <button class="action-btn" type="button" data-share-btn>Share this trip</button>
+        </div>
+        <div class="essentials-empty" data-essentials-empty>
+          Select an option above to view stays, places, previous trip reviews, and share tools.
+        </div>
+        <div class="places-box is-hidden" data-places-box>
+          <div class="places-header">
+            <h3 data-places-title>Places</h3>
+            <span class="map-note" data-places-note></span>
+          </div>
+          <div class="filter-chips" data-place-filters>
+            <button class="chip is-active" type="button" data-filter="all">All</button>
+            <button class="chip" type="button" data-filter="rated">Top Rated</button>
+            <button class="chip" type="button" data-filter="withImage">With Photo</button>
+          </div>
+          <div class="places-list" data-places-list></div>
+          <div class="place-review is-hidden" data-place-review-box>
+            <h4 data-place-review-title>Review this place</h4>
+            <div class="rating-row" data-place-rating-row>
+              <button class="star-btn" type="button" data-place-star="1" aria-label="Rate 1 star">&#9733;</button>
+              <button class="star-btn" type="button" data-place-star="2" aria-label="Rate 2 stars">&#9733;</button>
+              <button class="star-btn" type="button" data-place-star="3" aria-label="Rate 3 stars">&#9733;</button>
+              <button class="star-btn" type="button" data-place-star="4" aria-label="Rate 4 stars">&#9733;</button>
+              <button class="star-btn" type="button" data-place-star="5" aria-label="Rate 5 stars">&#9733;</button>
+            </div>
+            <textarea rows="3" placeholder="Share a quick note..." data-place-review-input></textarea>
+            <button class="primary-btn" type="button" data-place-review-save>Save Place Review</button>
+            <p class="save-note" data-place-review-note></p>
+          </div>
+        </div>
+        <div class="ai-plan is-hidden" data-ai-plan>
+          <div class="places-header">
+            <h3>AI Trip Plan</h3>
+            <span class="map-note">Personalized itinerary in seconds</span>
+          </div>
+          <form class="ai-plan-form" data-ai-plan-form>
+            <div class="plan-grid">
+              <label class="plan-field">
+                <span>Destination city</span>
+                <input type="text" name="city" placeholder="City" data-ai-city />
+              </label>
+              <label class="plan-field">
+                <span>Days</span>
+                <input type="number" name="days" min="1" max="10" value="3" />
+              </label>
+              <label class="plan-field">
+                <span>Budget</span>
+                <select name="budget">
+                  <option value="budget">Budget</option>
+                  <option value="mid-range" selected>Mid-range</option>
+                  <option value="premium">Premium</option>
+                </select>
+              </label>
+              <label class="plan-field">
+                <span>Interests</span>
+                <input type="text" name="interests" placeholder="e.g. food, nature, culture" />
+              </label>
+              <label class="plan-field">
+                <span>Pace</span>
+                <select name="pace">
+                  <option value="relaxed">Relaxed</option>
+                  <option value="balanced" selected>Balanced</option>
+                  <option value="packed">Packed</option>
+                </select>
+              </label>
+            </div>
+            <button class="primary-btn" type="submit">Generate Plan</button>
+            <p class="save-note" data-ai-plan-note></p>
+          </form>
+          <div class="ai-plan-output" data-ai-plan-output></div>
+        </div>
+        <div class="gems-box is-hidden" data-gems-box>
+          <div class="places-header">
+            <h3>Hidden Gems</h3>
+            <span class="map-note" data-gems-note>Near your destination</span>
+          </div>
+          <form class="gems-form" data-gems-form>
+            <div class="plan-grid">
+              <label class="plan-field">
+                <span>Destination city</span>
+                <input type="text" name="city" placeholder="City" data-gems-city />
+              </label>
+            </div>
+            <button class="primary-btn" type="submit">Find Hidden Gems</button>
+            <p class="save-note" data-gems-note-inline></p>
+          </form>
+          <div class="places-list" data-gems-list></div>
+        </div>
+        <div class="budget-box is-hidden" data-budget-box>
+          <div class="places-header">
+            <h3>Smart Budget Splitter</h3>
+            <span class="map-note">Split budget by mode, people, and trip duration</span>
+          </div>
+          <form class="budget-form" data-budget-form>
+            <div class="plan-grid">
+              <label class="plan-field">
+                <span>Total Budget (INR)</span>
+                <input type="number" name="totalBudget" min="1000" step="500" value="15000" required />
+              </label>
+              <label class="plan-field">
+                <span>Travelers</span>
+                <input type="number" name="travelers" min="1" max="20" value="2" required />
+              </label>
+              <label class="plan-field">
+                <span>Days</span>
+                <input type="number" name="days" min="1" max="30" value="3" required />
+              </label>
+              <label class="plan-field">
+                <span>Contingency (%)</span>
+                <input type="number" name="contingency" min="0" max="30" value="10" required />
+              </label>
+            </div>
+            <button class="primary-btn" type="submit">Calculate Split</button>
+            <p class="save-note" data-budget-note></p>
+          </form>
+          <div class="budget-output" data-budget-output></div>
+        </div>
+        <div class="safety-box is-hidden" data-safety-box>
+          <div class="places-header">
+            <h3>Safety Dashboard</h3>
+            <span class="map-note" data-safety-updated>Updated when route/weather loads</span>
+          </div>
+          <div class="safety-status" data-safety-status>
+            Search a route to view weather, alerts, and emergency guidance.
+          </div>
+          <div class="safety-grid">
+            <div class="safety-card">
+              <h4>Live Alerts and News</h4>
+              <div class="safety-links" data-safety-links></div>
+            </div>
+            <div class="safety-card">
+              <h4>Emergency Carry Checklist</h4>
+              <ul class="safety-list" data-safety-checklist></ul>
+            </div>
+          </div>
+        </div>
+        <div class="previous-trips is-hidden" data-previous-trips>
+          <div class="previous-trips-header">
+            <h3>Previous trips</h3>
+            <div class="previous-trips-meta">
+              <span class="map-note">Based on your recent searches</span>
+              <button class="ghost-btn is-hidden" type="button" data-close-trips>Close</button>
+            </div>
+          </div>
+          <div class="previous-trips-list" data-trip-list></div>
+        </div>
+        <div class="review-box is-hidden" data-review-box>
+          <h3 data-review-title>Last trip review</h3>
+          <p>Share your highlights or what you would do differently next time.</p>
+          <div class="rating-row" data-rating-row>
+            <button class="star-btn" type="button" data-star="1" aria-label="Rate 1 star">&#9733;</button>
+            <button class="star-btn" type="button" data-star="2" aria-label="Rate 2 stars">&#9733;</button>
+            <button class="star-btn" type="button" data-star="3" aria-label="Rate 3 stars">&#9733;</button>
+            <button class="star-btn" type="button" data-star="4" aria-label="Rate 4 stars">&#9733;</button>
+            <button class="star-btn" type="button" data-star="5" aria-label="Rate 5 stars">&#9733;</button>
+          </div>
+          <textarea rows="4" placeholder="Write your review..." data-review-input></textarea>
+          <button class="primary-btn" type="button" data-review-save>Save Review</button>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer reveal">
+      <div class="footer-left">
+        <p><strong>Email:</strong> hello@routes-connect.com</p>
+        <p><strong>Contact:</strong> +91 98765 43210</p>
+        <p><strong>Address:</strong> Connaught Place, New Delhi, India</p>
+      </div>
+      <div class="footer-center">&copy; 2026 Routes-connect. All rights reserved.</div>
+      <div class="footer-right">
+        <a class="social-link" href="https://www.facebook.com/" target="_blank" rel="noreferrer" aria-label="Facebook">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M13.5 9H15V6h-1.5C11.6 6 10 7.6 10 9.5V11H8v3h2v6h3v-6h2.2l.3-3H13v-1.4c0-.4.1-.6.5-.6z"/>
+          </svg>
+        </a>
+        <a class="social-link" href="https://www.instagram.com/" target="_blank" rel="noreferrer" aria-label="Instagram">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M7 3h10a4 4 0 0 1 4 4v10a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V7a4 4 0 0 1 4-4zm10 2H7a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm-5 3.5A4.5 4.5 0 1 1 7.5 13 4.5 4.5 0 0 1 12 8.5zm0 2A2.5 2.5 0 1 0 14.5 13 2.5 2.5 0 0 0 12 10.5zm5-2.9a1 1 0 1 1-1-1 1 1 0 0 1 1 1z"/>
+          </svg>
+        </a>
+        <a class="social-link" href="https://twitter.com/" target="_blank" rel="noreferrer" aria-label="Twitter">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M19.9 7.4c.1 3.8-2.7 8.1-8.1 8.1-1.6 0-3-.5-4.2-1.3h.6c1.3 0 2.5-.4 3.5-1.2-1.2 0-2.3-.8-2.6-2 .3 0 .6 0 .9-.1-1.3-.3-2.2-1.5-2.2-2.8.4.2.9.3 1.4.3-1.2-.8-1.6-2.3-.9-3.6 1.4 1.7 3.4 2.7 5.7 2.8-.4-1.7 1.3-3.2 3-2.5.5-.1 1-.4 1.4-.7-.2.5-.6 1-1.1 1.3.5 0 .9-.2 1.3-.3-.3.5-.7.9-1.2 1.2z"/>
+          </svg>
+        </a>
+      </div>
+    </footer>
+
+    <script src="route.js"></script>
+    <button class="floating-theme" type="button" data-theme-toggle aria-label="Toggle theme">
+      <span class="floating-orb"></span>
+      <span class="floating-label">Dark mode</span>
+    </button>
+    <script src="theme.js"></script>
+  </body>
+</html>
+
+
