@@ -190,20 +190,6 @@ const setPexelsCache = (key, value, ttlMs = 30 * 60 * 1000) => {
   pexelsCache.set(key, { value, expiresAt: Date.now() + ttlMs });
 };
 
-const aiSuggestionCache = new Map();
-const getAiSuggestionCache = (key) => {
-  const cached = aiSuggestionCache.get(key);
-  if (!cached) return null;
-  if (Date.now() > cached.expiresAt) {
-    aiSuggestionCache.delete(key);
-    return null;
-  }
-  return cached.value;
-};
-const setAiSuggestionCache = (key, value, ttlMs = 30 * 60 * 1000) => {
-  aiSuggestionCache.set(key, { value, expiresAt: Date.now() + ttlMs });
-};
-
 const defaultDestinationSuggestions = () => [
   {
     city: "Jaipur",
@@ -211,7 +197,7 @@ const defaultDestinationSuggestions = () => [
     tagline: "Traditional forts, local crafts, and royal streets.",
     mode: "Train",
     badges: ["Traditional", "Heritage"],
-    pexelsQuery: "Jaipur traditional architecture india",
+    wikipediaQuery: "Jaipur",
   },
   {
     city: "Varanasi",
@@ -219,7 +205,7 @@ const defaultDestinationSuggestions = () => [
     tagline: "Religious ghats, temple rituals, and spiritual walks.",
     mode: "Train",
     badges: ["Religious Place", "Spiritual"],
-    pexelsQuery: "Varanasi temple ghat india",
+    wikipediaQuery: "Varanasi",
   },
   {
     city: "Agra",
@@ -227,7 +213,7 @@ const defaultDestinationSuggestions = () => [
     tagline: "Classic Indian tourist landmarks and old-city charm.",
     mode: "Cab",
     badges: ["Indian Tourist", "Monument"],
-    pexelsQuery: "Agra Taj Mahal indian tourist city",
+    wikipediaQuery: "Agra",
   },
   {
     city: "Mumbai",
@@ -235,7 +221,71 @@ const defaultDestinationSuggestions = () => [
     tagline: "Famous city skyline, sea views, and vibrant streets.",
     mode: "Bus",
     badges: ["Famous City", "Urban"],
-    pexelsQuery: "Mumbai famous city india skyline",
+    wikipediaQuery: "Mumbai",
+  },
+  {
+    city: "Udaipur",
+    state: "Rajasthan",
+    tagline: "Lakeside palaces and old city lanes.",
+    mode: "Train",
+    badges: ["Heritage", "Romantic"],
+    wikipediaQuery: "Udaipur",
+  },
+  {
+    city: "Mysuru",
+    state: "Karnataka",
+    tagline: "Royal architecture and calm cultural streets.",
+    mode: "Bus",
+    badges: ["Culture", "Palace"],
+    wikipediaQuery: "Mysore",
+  },
+  {
+    city: "Amritsar",
+    state: "Punjab",
+    tagline: "Sacred landmarks and vibrant Punjabi food.",
+    mode: "Train",
+    badges: ["Religious Place", "Food"],
+    wikipediaQuery: "Amritsar",
+  },
+  {
+    city: "Kochi",
+    state: "Kerala",
+    tagline: "Coastal culture, cafes, and harbor views.",
+    mode: "Cab",
+    badges: ["Famous City", "Coastal"],
+    wikipediaQuery: "Kochi",
+  },
+  {
+    city: "Rishikesh",
+    state: "Uttarakhand",
+    tagline: "Riverfront walks and spiritual retreat vibes.",
+    mode: "Bus",
+    badges: ["Religious Place", "Nature"],
+    wikipediaQuery: "Rishikesh",
+  },
+  {
+    city: "Goa",
+    state: "Goa",
+    tagline: "Beaches, nightlife, and Portuguese heritage.",
+    mode: "Cab",
+    badges: ["Indian Tourist", "Coastal"],
+    wikipediaQuery: "Goa",
+  },
+  {
+    city: "Shimla",
+    state: "Himachal Pradesh",
+    tagline: "Hill views, colonial streets, and cool weather.",
+    mode: "Bus",
+    badges: ["Famous City", "Hill Station"],
+    wikipediaQuery: "Shimla",
+  },
+  {
+    city: "Jodhpur",
+    state: "Rajasthan",
+    tagline: "Blue city charm and massive hill forts.",
+    mode: "Train",
+    badges: ["Traditional", "Heritage"],
+    wikipediaQuery: "Jodhpur",
   },
 ];
 
@@ -255,8 +305,83 @@ const normalizeSuggestionItem = (item) => {
     tagline,
     mode,
     badges: badges.length ? badges : ["Popular", "Travel"],
-    pexelsQuery: String(item?.pexelsQuery || `${city} india tourism`).trim(),
+    wikipediaQuery: String(item?.wikipediaQuery || city).trim(),
   };
+};
+
+const shuffleList = (items) => {
+  const list = [...items];
+  for (let i = list.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [list[i], list[j]] = [list[j], list[i]];
+  }
+  return list;
+};
+
+const pickUniqueSuggestions = (items, count = 4, excludeCities = []) => {
+  const exclude = new Set(
+    (Array.isArray(excludeCities) ? excludeCities : [])
+      .map((v) => String(v || "").trim().toLowerCase())
+      .filter(Boolean)
+  );
+  const shuffled = shuffleList(items).filter(
+    (item) => !exclude.has(String(item.city || "").toLowerCase())
+  );
+  const selected = shuffled.slice(0, count);
+  if (selected.length === count) return selected;
+  const backup = shuffleList(items).slice(0, count);
+  return backup;
+};
+
+const fetchWikipediaImageForQuery = async (query) => {
+  const q = String(query || "").trim();
+  if (!q) return "";
+
+  try {
+    const searchUrl = `https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(
+      q
+    )}&gsrlimit=1&prop=pageimages&piprop=thumbnail&pithumbsize=900&format=json&origin=*`;
+    const searchRes = await fetch(searchUrl);
+    if (searchRes.ok) {
+      const searchData = await searchRes.json();
+      const pages = searchData?.query?.pages || {};
+      const first = Object.values(pages)[0];
+      const thumb = first?.thumbnail?.source;
+      if (thumb) return thumb;
+    }
+  } catch {
+    // continue fallback
+  }
+
+  try {
+    const summaryUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(
+      q
+    )}`;
+    const summaryRes = await fetch(summaryUrl);
+    if (!summaryRes.ok) return "";
+    const summaryData = await summaryRes.json();
+    return (
+      summaryData?.thumbnail?.source ||
+      summaryData?.originalimage?.source ||
+      ""
+    );
+  } catch {
+    return "";
+  }
+};
+
+const enrichSuggestionImages = async (suggestions) => {
+  const withImages = await Promise.all(
+    suggestions.map(async (item) => {
+      const query = `${item.city} ${item.state}`.trim();
+      const image =
+        (await fetchWikipediaImageForQuery(query)) ||
+        (await fetchWikipediaImageForQuery(item.city)) ||
+        "";
+      return { ...item, image };
+    })
+  );
+  return withImages;
 };
 
 const parseFirstJsonObject = (text) => {
@@ -432,16 +557,17 @@ app.post("/api/destinations/suggest", async (req, res) => {
     const history = Array.isArray(req.body?.history)
       ? req.body.history.map((v) => String(v || "").trim()).filter(Boolean).slice(0, 5)
       : [];
-    const cacheKey = `${from.toLowerCase()}|${to.toLowerCase()}|${history.join("|").toLowerCase()}`;
-    const cached = getAiSuggestionCache(cacheKey);
-    if (cached) {
-      res.set("Cache-Control", "public, max-age=1800");
-      return res.json(cached);
-    }
+    const previousCities = Array.isArray(req.body?.previousCities)
+      ? req.body.previousCities.map((v) => String(v || "").trim()).filter(Boolean).slice(0, 8)
+      : [];
 
-    let suggestions = defaultDestinationSuggestions();
+    let suggestions = pickUniqueSuggestions(defaultDestinationSuggestions(), 4, previousCities);
 
     if (OPENAI_KEY) {
+      const randomNonce = Math.random().toString(36).slice(2, 10);
+      const avoidLine = previousCities.length
+        ? `Avoid these cities in this response: ${previousCities.join(", ")}.`
+        : "";
       const prompt = [
         "Suggest exactly 4 destination cards in India.",
         "Use these themes exactly once each:",
@@ -450,9 +576,11 @@ app.post("/api/destinations/suggest", async (req, res) => {
         "3) Indian Tourist",
         "4) Famous City",
         `Traveler context: from=${from || "unknown"}, to=${to || "unknown"}, recentTrips=${history.join(", ") || "none"}.`,
+        `Variation seed: ${randomNonce}`,
+        avoidLine,
         "Return ONLY valid JSON with shape:",
-        '{"suggestions":[{"city":"...","state":"...","tagline":"...","mode":"Train|Bus|Cab","badges":["...","..."],"pexelsQuery":"..."}]}',
-        "Keep tagline under 12 words. Keep pexelsQuery focused on that destination.",
+        '{"suggestions":[{"city":"...","state":"...","tagline":"...","mode":"Train|Bus|Cab","badges":["...","..."],"wikipediaQuery":"..."}]}',
+        "Keep tagline under 12 words. Keep wikipediaQuery as a city/place title.",
       ].join("\n");
 
       try {
@@ -472,7 +600,7 @@ app.post("/api/destinations/suggest", async (req, res) => {
               },
               { role: "user", content: prompt },
             ],
-            temperature: 0.7,
+            temperature: 1.05,
           }),
         });
 
@@ -491,13 +619,15 @@ app.post("/api/destinations/suggest", async (req, res) => {
       }
     }
 
-    const payload = { suggestions };
-    setAiSuggestionCache(cacheKey, payload);
-    res.set("Cache-Control", "public, max-age=1800");
+    const suggestionsWithImages = await enrichSuggestionImages(suggestions);
+    const payload = { suggestions: suggestionsWithImages };
+    res.set("Cache-Control", "no-store");
     res.json(payload);
   } catch (error) {
     console.error("AI destination suggestion error:", error);
-    res.json({ suggestions: defaultDestinationSuggestions() });
+    const fallback = await enrichSuggestionImages(shuffleList(defaultDestinationSuggestions()));
+    res.set("Cache-Control", "no-store");
+    res.json({ suggestions: fallback });
   }
 });
 

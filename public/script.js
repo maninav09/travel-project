@@ -442,6 +442,8 @@ onReady(() => {
     },
   ];
   let destinationSuggestions = defaultDestinationSuggestions.slice();
+  let lastSuggestionSignature = "";
+  let lastSuggestionCities = [];
 
   const trendingStorageKey = "trendingDestinations";
   const defaultTrending = [
@@ -619,6 +621,11 @@ onReady(() => {
     }
   };
 
+  const suggestionsSignature = (items) =>
+    (Array.isArray(items) ? items : [])
+      .map((item) => `${item.city}|${item.state}|${item.tagline}|${item.mode}`)
+      .join("||");
+
   const fetchAiDestinationSuggestions = async () => {
     const fromInput = homeForm ? homeForm.querySelector('input[name="from"]') : null;
     const toInput = homeForm ? homeForm.querySelector('input[name="to"]') : null;
@@ -629,15 +636,39 @@ onReady(() => {
       .filter(Boolean)
       .slice(0, 5);
     try {
-      const response = await fetch(`${apiBase}/api/destinations/suggest`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ from, to, history }),
-      });
-      if (!response.ok) return;
-      const data = await response.json();
-      if (Array.isArray(data?.suggestions) && data.suggestions.length) {
-        destinationSuggestions = data.suggestions.slice(0, 4);
+      const requestSuggestions = async () => {
+        const response = await fetch(`${apiBase}/api/destinations/suggest`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          cache: "no-store",
+          body: JSON.stringify({
+            from,
+            to,
+            history,
+            previousCities: lastSuggestionCities,
+            nonce: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          }),
+        });
+        if (!response.ok) return [];
+        const data = await response.json();
+        return Array.isArray(data?.suggestions) ? data.suggestions.slice(0, 4) : [];
+      };
+
+      let nextSuggestions = await requestSuggestions();
+      let nextSignature = suggestionsSignature(nextSuggestions);
+      if (nextSuggestions.length && nextSignature === lastSuggestionSignature) {
+        const retrySuggestions = await requestSuggestions();
+        const retrySignature = suggestionsSignature(retrySuggestions);
+        if (retrySuggestions.length && retrySignature !== lastSuggestionSignature) {
+          nextSuggestions = retrySuggestions;
+          nextSignature = retrySignature;
+        }
+      }
+
+      if (nextSuggestions.length) {
+        destinationSuggestions = nextSuggestions;
+        lastSuggestionSignature = nextSignature;
+        lastSuggestionCities = nextSuggestions.map((item) => String(item.city || "").trim()).filter(Boolean);
       }
     } catch {
       // Keep defaults on network error.
@@ -689,11 +720,10 @@ onReady(() => {
         if (toInput) toInput.focus();
       });
       suggestionsGrid.appendChild(card);
-      fetchPexelsImage({ query: item.pexelsQuery }).then((image) => {
-        if (image) {
-          card.style.setProperty("--card-image", `url("${image}")`);
-        }
-      });
+      const wikiImage = String(item.image || "").trim();
+      if (wikiImage) {
+        card.style.setProperty("--card-image", `url("${wikiImage}")`);
+      }
     });
   };
 
@@ -717,6 +747,7 @@ onReady(() => {
     if (suggestionsGrid) {
       suggestionsGrid.innerHTML = `<p class="suggestions-loading">Loading AI destination suggestions...</p>`;
     }
+    destinationSuggestions = [];
     await fetchAiDestinationSuggestions();
     renderSuggestions();
   };
