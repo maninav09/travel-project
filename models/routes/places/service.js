@@ -223,67 +223,6 @@ const fetchPlacesForCity = async (to) => {
   };
 };
 
-const decodePolyline = (encoded) => {
-  let index = 0;
-  const len = encoded.length;
-  let lat = 0;
-  let lng = 0;
-  const coordinates = [];
-
-  while (index < len) {
-    let b = 0;
-    let shift = 0;
-    let result = 0;
-    do {
-      b = encoded.charCodeAt(index++) - 63;
-      result |= (b & 0x1f) << shift;
-      shift += 5;
-    } while (b >= 0x20);
-    const dlat = (result & 1) ? ~(result >> 1) : result >> 1;
-    lat += dlat;
-
-    shift = 0;
-    result = 0;
-    do {
-      b = encoded.charCodeAt(index++) - 63;
-      result |= (b & 0x1f) << shift;
-      shift += 5;
-    } while (b >= 0x20);
-    const dlng = (result & 1) ? ~(result >> 1) : result >> 1;
-    lng += dlng;
-
-    coordinates.push({ lat: lat / 1e5, lng: lng / 1e5 });
-  }
-  return coordinates;
-};
-
-const fetchRoutePolyline = async (from, to) => {
-  if (!GOOGLE_KEY) return null;
-  const params = new URLSearchParams({
-    origin: from,
-    destination: to,
-    key: GOOGLE_KEY,
-  });
-  const url = `https://maps.googleapis.com/maps/api/directions/json?${params.toString()}`;
-  const response = await fetch(url);
-  if (!response.ok) return null;
-  const data = await response.json();
-  const polyline = data?.routes?.[0]?.overview_polyline?.points;
-  if (!polyline) return null;
-  return decodePolyline(polyline);
-};
-
-const sampleRoutePoints = (points, count = 6) => {
-  if (!Array.isArray(points) || !points.length) return [];
-  if (points.length <= count) return points;
-  const step = Math.floor(points.length / count);
-  const sampled = [];
-  for (let i = 0; i < points.length && sampled.length < count; i += step) {
-    sampled.push(points[i]);
-  }
-  return sampled;
-};
-
 const uniqueByName = (items) => {
   const seen = new Set();
   const results = [];
@@ -294,43 +233,6 @@ const uniqueByName = (items) => {
     results.push(item);
   }
   return results;
-};
-
-const fetchPlacesAlongRoute = async (from, to) => {
-  const fallback = pickImageForCity(to || from);
-  const routePoints = await fetchRoutePolyline(from, to);
-  if (!routePoints || !routePoints.length) return null;
-
-  const sampled = sampleRoutePoints(routePoints, 6);
-  const hotelBuckets = [];
-  const restaurantBuckets = [];
-  const placeBuckets = [];
-
-  for (const point of sampled) {
-    const [hotelsRaw, restaurantsRaw, placesRaw] = await Promise.all([
-      nearbySearch(point.lat, point.lng, "lodging"),
-      nearbySearch(point.lat, point.lng, "restaurant"),
-      nearbySearch(point.lat, point.lng, "tourist_attraction"),
-    ]);
-    hotelBuckets.push(...hotelsRaw);
-    restaurantBuckets.push(...restaurantsRaw);
-    placeBuckets.push(...placesRaw);
-  }
-
-  const hotels = uniqueByName(hotelBuckets)
-    .slice(0, 6)
-    .map((p) => mapPlaceToDetail(p, fallback))
-    .slice(0, 3);
-  const restaurants = uniqueByName(restaurantBuckets)
-    .slice(0, 6)
-    .map((p) => mapPlaceToDetail(p, fallback))
-    .slice(0, 3);
-  const places = uniqueByName(placeBuckets)
-    .slice(0, 6)
-    .map((p) => mapPlaceToDetail(p, fallback))
-    .slice(0, 3);
-
-  return { hotels, restaurants, places };
 };
 
 const isIncomplete = (route) => {
@@ -444,7 +346,6 @@ const ensureRoutes = async ({ from, to, force = false }) => {
 module.exports = {
   ensureRoutes,
   fetchPlacesForCity,
-  fetchPlacesAlongRoute,
   isIncomplete,
   normalizeMode,
 };

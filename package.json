@@ -7,7 +7,7 @@
     "start": "node server.js",
     "seed": "node scripts/seedTrains.js",
     "seed:trains": "node scripts/seedTrains.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node --test tests/*.test.js"
   },
   "keywords": [],
   "author": "",
@@ -16,15 +16,11 @@
   "dependencies": {
     "axios": "^1.13.4",
     "bcryptjs": "^2.4.3",
-    "body-parser": "^2.2.2",
     "cors": "^2.8.6",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
-    "form-data": "^4.0.0",
-    "mongodb": "^7.1.0",
     "mongoose": "^9.1.6",
-    "multer": "^2.0.2",
-    "node-fetch": "^3.3.2"
+    "multer": "^2.0.2"
   },
   "devDependencies": {
     "@tailwindcss/cli": "^4.1.18",

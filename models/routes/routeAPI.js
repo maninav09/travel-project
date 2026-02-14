@@ -6,8 +6,6 @@ const Route = require("./route");
 
 const {
   ensureRoutes,
-  fetchPlacesForCity,
-  fetchPlacesAlongRoute,
   isIncomplete,
   normalizeMode,
 } = require("./places/service");
