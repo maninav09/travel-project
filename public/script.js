@@ -63,6 +63,7 @@ onReady(() => {
   const loginNote = document.querySelector("[data-login-note]");
   const homeCostBody = document.querySelector("[data-home-cost-body]");
   const continueBtn = document.querySelector("[data-continue-route]");
+  const savedRoutesList = document.querySelector("[data-saved-routes]");
   const newsletterForm = document.querySelector("[data-newsletter-form]");
   const newsletterNote = document.querySelector("[data-newsletter-note]");
   const lastTripReviewsBox = document.querySelector("[data-last-trip-reviews]");
@@ -71,6 +72,44 @@ onReady(() => {
     isLocalDevHost && window.location.port && window.location.port !== "5000"
       ? "http://127.0.0.1:5000"
       : "";
+  const homeLogic = window.HomeLogic || {
+    normalizeHeroIndex: (index, total) => {
+      const max = Number(total) || 0;
+      if (max <= 0) return 0;
+      const value = Number(index) || 0;
+      return ((value % max) + max) % max;
+    },
+    nextHeroIndex: (current, total) => {
+      const value = Number(current) || 0;
+      return ((value + 1) % total + total) % total;
+    },
+    prevHeroIndex: (current, total) => {
+      const value = Number(current) || 0;
+      return ((value - 1) % total + total) % total;
+    },
+    validateRouteInputs: (from, to) => {
+      const cleanFrom = String(from || "").trim();
+      const cleanTo = String(to || "").trim();
+      if (cleanFrom.length < 2 || cleanTo.length < 2) {
+        return {
+          valid: false,
+          message: "Please enter valid city names (minimum 2 characters).",
+        };
+      }
+      if (cleanFrom.toLowerCase() === cleanTo.toLowerCase()) {
+        return {
+          valid: false,
+          message: "Departure and destination cannot be the same city.",
+        };
+      }
+      return { valid: true, message: "" };
+    },
+  };
+  const savedRoutesKey = "homeSavedRoutes";
+  const analyticsEndpoints = [
+    `${apiBase}/api/analytics`,
+    "http://127.0.0.1:5000/api/analytics",
+  ];
   let pendingRouteQuery = "";
   let homeMode = "Train";
 
@@ -119,8 +158,16 @@ onReady(() => {
   window.addEventListener("scroll", updateHeaderState, { passive: true });
 
   if (navToggle && mainNav) {
+    navToggle.setAttribute("aria-expanded", "false");
     navToggle.addEventListener("click", () => {
-      mainNav.classList.toggle("is-open");
+      const isOpen = mainNav.classList.toggle("is-open");
+      navToggle.setAttribute("aria-expanded", isOpen ? "true" : "false");
+    });
+    mainNav.querySelectorAll(".nav-link").forEach((link) => {
+      link.addEventListener("click", () => {
+        mainNav.classList.remove("is-open");
+        navToggle.setAttribute("aria-expanded", "false");
+      });
     });
   }
 
@@ -159,25 +206,27 @@ onReady(() => {
 
   const setActiveHero = (index) => {
     if (!heroSlidesLimit) return;
-    const safeIndex = ((index % heroSlidesLimit) + heroSlidesLimit) % heroSlidesLimit;
+    const safeIndex = homeLogic.normalizeHeroIndex(index, heroSlidesLimit);
     slides.forEach((slide, i) =>
       slide.classList.toggle("is-active", i < heroSlidesLimit && i === safeIndex)
     );
-    heroDots.forEach((dot, i) =>
-      dot.classList.toggle("is-active", i < heroSlidesLimit && i === safeIndex)
-    );
+    heroDots.forEach((dot, i) => {
+      const active = i < heroSlidesLimit && i === safeIndex;
+      dot.classList.toggle("is-active", active);
+      dot.setAttribute("aria-current", active ? "true" : "false");
+    });
     heroIndex = safeIndex;
     syncHeroBackground(safeIndex);
   };
 
   const nextHero = () => {
     if (!heroSlidesLimit) return;
-    setActiveHero((heroIndex + 1) % heroSlidesLimit);
+    setActiveHero(homeLogic.nextHeroIndex(heroIndex, heroSlidesLimit));
   };
 
   const prevHero = () => {
     if (!heroSlidesLimit) return;
-    setActiveHero((heroIndex - 1 + heroSlidesLimit) % heroSlidesLimit);
+    setActiveHero(homeLogic.prevHeroIndex(heroIndex, heroSlidesLimit));
   };
 
   const startHero = () => {
@@ -189,9 +238,18 @@ onReady(() => {
     setupHeroThemeSlides();
     setActiveHero(0);
     startHero();
-    if (heroPrev) heroPrev.addEventListener("click", () => { prevHero(); startHero(); });
-    if (heroNext) heroNext.addEventListener("click", () => { nextHero(); startHero(); });
+    if (heroPrev)
+      heroPrev.addEventListener("click", () => {
+        prevHero();
+        startHero();
+      });
+    if (heroNext)
+      heroNext.addEventListener("click", () => {
+        nextHero();
+        startHero();
+      });
     heroDots.forEach((dot) => {
+      dot.setAttribute("aria-current", dot.classList.contains("is-active") ? "true" : "false");
       dot.addEventListener("click", () => {
         const idx = Number(dot.dataset.heroDot || 0);
         if (idx >= heroSlidesLimit) return;
@@ -199,6 +257,19 @@ onReady(() => {
         startHero();
       });
     });
+    if (heroMedia) {
+      heroMedia.addEventListener("keydown", (event) => {
+        if (event.key === "ArrowLeft") {
+          event.preventDefault();
+          prevHero();
+          startHero();
+        } else if (event.key === "ArrowRight") {
+          event.preventDefault();
+          nextHero();
+          startHero();
+        }
+      });
+    }
   }
 
   if (revealItems.length) {
@@ -387,8 +458,10 @@ onReady(() => {
         }
         setNewsletterNote(data?.message || "Subscribed successfully.");
         newsletterForm.reset();
+        trackEvent("newsletter_subscribe", { status: "success" });
       } catch (error) {
         setNewsletterNote(error.message || "Unable to subscribe.", true);
+        trackEvent("newsletter_subscribe", { status: "error" });
       } finally {
         if (submitBtn) submitBtn.disabled = false;
       }
@@ -403,6 +476,7 @@ onReady(() => {
   if (continueBtn) {
     continueBtn.addEventListener("click", () => {
       if (!pendingRouteQuery) return;
+      trackEvent("continue_route_click");
       window.location.href = `route.html?${pendingRouteQuery}`;
     });
   }
@@ -481,6 +555,35 @@ onReady(() => {
       .replace(/"/g, "&quot;")
       .replace(/'/g, "&#39;");
 
+  const getUniqueEndpoints = (items) => Array.from(new Set(items.filter(Boolean)));
+
+  const trackEvent = (event, metadata = {}) => {
+    const payload = JSON.stringify({
+      event,
+      page: "home",
+      metadata,
+      ts: new Date().toISOString(),
+    });
+    const endpoints = getUniqueEndpoints(analyticsEndpoints);
+    endpoints.forEach((endpoint) => {
+      try {
+        if (navigator.sendBeacon) {
+          const blob = new Blob([payload], { type: "application/json" });
+          navigator.sendBeacon(endpoint, blob);
+          return;
+        }
+      } catch {
+        // Fallback to fetch below.
+      }
+      fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: payload,
+        keepalive: true,
+      }).catch(() => {});
+    });
+  };
+
   const getTripHistory = () => {
     try {
       const raw = localStorage.getItem("tripHistory");
@@ -501,6 +604,83 @@ onReady(() => {
     } catch {
       return {};
     }
+  };
+
+  const getSavedRoutes = () => {
+    try {
+      const raw = localStorage.getItem(savedRoutesKey);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const saveSavedRoutes = (items) => {
+    localStorage.setItem(savedRoutesKey, JSON.stringify(items));
+  };
+
+  const upsertTripHistory = ({ from, to, mode }) => {
+    const cleanFrom = String(from || "").trim();
+    const cleanTo = String(to || "").trim();
+    if (!cleanFrom || !cleanTo) return;
+    const label = `${cleanFrom} \u2192 ${cleanTo}`;
+    const history = getTripHistory().filter((item) => item?.label !== label);
+    history.unshift({
+      label,
+      mode: mode || "Train",
+      date: new Date().toLocaleDateString(),
+    });
+    localStorage.setItem("tripHistory", JSON.stringify(history.slice(0, 6)));
+  };
+
+  const renderSavedRoutes = () => {
+    if (!savedRoutesList) return;
+    const items = getSavedRoutes().slice(0, 6);
+    if (!items.length) {
+      savedRoutesList.innerHTML = `<article class="saved-route-card"><p>No saved routes yet. Search a route to create one.</p></article>`;
+      return;
+    }
+    savedRoutesList.innerHTML = items
+      .map((item, idx) => {
+        const from = escapeHtml(item.from || "");
+        const to = escapeHtml(item.to || "");
+        const mode = escapeHtml(item.mode || "Train");
+        const updated = escapeHtml(item.lastUsedAt || "");
+        return `
+          <article class="saved-route-card">
+            <h3>${from} \u2192 ${to}</h3>
+            <p>Mode: ${mode}</p>
+            <small>Last used: ${updated || "Recently"}</small>
+            <div class="saved-route-actions">
+              <button class="primary-btn" type="button" data-use-saved-route="${idx}">Use route</button>
+              <button class="ghost-btn" type="button" data-delete-saved-route="${idx}">Remove</button>
+            </div>
+          </article>
+        `;
+      })
+      .join("");
+  };
+
+  const saveRouteSearch = ({ from, to, mode }) => {
+    const cleanFrom = String(from || "").trim();
+    const cleanTo = String(to || "").trim();
+    if (!cleanFrom || !cleanTo) return;
+    const list = getSavedRoutes().filter(
+      (item) =>
+        String(item?.from || "").toLowerCase() !== cleanFrom.toLowerCase() ||
+        String(item?.to || "").toLowerCase() !== cleanTo.toLowerCase()
+    );
+    list.unshift({
+      from: cleanFrom,
+      to: cleanTo,
+      mode: mode || "Train",
+      lastUsedAt: new Date().toLocaleString(),
+    });
+    saveSavedRoutes(list.slice(0, 6));
+    renderSavedRoutes();
+    upsertTripHistory({ from: cleanFrom, to: cleanTo, mode: mode || "Train" });
   };
 
   const renderStars = (rating) => {
@@ -555,7 +735,7 @@ onReady(() => {
         const alt = escapeHtml(`${city} destination`);
         return `
           <article class="tile" data-city="${city}" data-state="${state}" data-label="${label}">
-            <img src="img/travel1.jpg" alt="${alt}" data-trending-photo />
+            <img src="img/travel1.jpg" alt="${alt}" data-trending-photo loading="lazy" decoding="async" />
             <div class="tile-copy">
               <span>${label}</span>
               <h3>${city}</h3>
@@ -728,6 +908,7 @@ onReady(() => {
   };
 
   renderTrendingCards();
+  renderSavedRoutes();
   applyLiveHeroPexelsImages();
   applyLivePexelsImages();
   renderLastTripReviews();
@@ -738,7 +919,38 @@ onReady(() => {
       const city = String(tile.dataset.city || "").trim();
       const state = String(tile.dataset.state || "India").trim();
       if (!city) return;
+      trackEvent("trending_tile_click", { city, state });
       window.open(buildWikipediaUrl(city, state), "_blank", "noopener,noreferrer");
+    });
+  }
+
+  if (savedRoutesList) {
+    savedRoutesList.addEventListener("click", (event) => {
+      const useBtn = event.target.closest("[data-use-saved-route]");
+      const deleteBtn = event.target.closest("[data-delete-saved-route]");
+      const items = getSavedRoutes();
+
+      if (deleteBtn) {
+        const idx = Number(deleteBtn.dataset.deleteSavedRoute);
+        if (!Number.isFinite(idx)) return;
+        const next = items.filter((_, i) => i !== idx);
+        saveSavedRoutes(next);
+        renderSavedRoutes();
+        return;
+      }
+
+      if (useBtn) {
+        const idx = Number(useBtn.dataset.useSavedRoute);
+        const item = items[idx];
+        if (!item || !homeForm) return;
+        const fromInput = homeForm.querySelector('input[name="from"]');
+        const toInput = homeForm.querySelector('input[name="to"]');
+        if (fromInput) fromInput.value = item.from || "";
+        if (toInput) toInput.value = item.to || "";
+        homeMode = item.mode || "Train";
+        trackEvent("saved_route_reuse", { from: item.from, to: item.to, mode: homeMode });
+        homeForm.requestSubmit();
+      }
     });
   }
 
@@ -756,7 +968,11 @@ onReady(() => {
     if (suggestionsModal) suggestionsModal.classList.add("is-hidden");
   };
 
-  if (exploreBtn) exploreBtn.addEventListener("click", openSuggestions);
+  if (exploreBtn)
+    exploreBtn.addEventListener("click", () => {
+      trackEvent("explore_click");
+      openSuggestions();
+    });
   if (closeSuggestionsBtn) closeSuggestionsBtn.addEventListener("click", closeSuggestions);
   if (suggestionsModal) {
     suggestionsModal.addEventListener("click", (event) => {
@@ -765,53 +981,119 @@ onReady(() => {
   }
 
   document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && navToggle && mainNav && mainNav.classList.contains("is-open")) {
+      mainNav.classList.remove("is-open");
+      navToggle.setAttribute("aria-expanded", "false");
+    }
     if (event.key === "Escape") closeSuggestions();
   });
 
+  const fetchRouteComparison = async ({ from, to, mode }) => {
+    const endpoints = getUniqueEndpoints([
+      `${apiBase}/api/routes`,
+      "http://127.0.0.1:5000/api/routes",
+    ]);
+    let lastError = "Unable to load route data.";
+
+    for (const endpoint of endpoints) {
+      try {
+        const response = await fetch(
+          `${endpoint}?mode=${encodeURIComponent(mode)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+          { cache: "no-store" }
+        );
+        const data = await response.json().catch(() => ({}));
+        if (response.ok) return data;
+        lastError = data?.error || `Request failed (${response.status})`;
+      } catch {
+        // Try next endpoint.
+      }
+    }
+
+    throw new Error(lastError);
+  };
+
+  const setInputValidationState = (input, hasError) => {
+    if (!input) return;
+    input.classList.toggle("is-invalid", Boolean(hasError));
+    input.setAttribute("aria-invalid", hasError ? "true" : "false");
+  };
+
+  const runHomeRouteSearch = async ({ from, to, source = "form" }) => {
+    const validation = homeLogic.validateRouteInputs(from, to);
+    const fromInput = homeForm ? homeForm.querySelector('input[name="from"]') : null;
+    const toInput = homeForm ? homeForm.querySelector('input[name="to"]') : null;
+
+    if (!validation.valid) {
+      if (loginNote) loginNote.textContent = validation.message;
+      setInputValidationState(fromInput, true);
+      setInputValidationState(toInput, true);
+      showContinueButton(false);
+      trackEvent("route_search_validation_error", { source, message: validation.message });
+      return;
+    }
+
+    setInputValidationState(fromInput, false);
+    setInputValidationState(toInput, false);
+
+    const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
+    if (!isLoggedIn) {
+      if (loginNote) loginNote.textContent = "Please sign in to search routes.";
+      window.location.href = "login.html";
+      return;
+    }
+
+    const query = new URLSearchParams({ mode: homeMode, from, to }).toString();
+
+    if (loginNote) loginNote.textContent = "Checking travel time...";
+    if (homeCostBody) homeCostBody.textContent = "Loading cost comparison...";
+    showContinueButton(false);
+
+    try {
+      const data = await fetchRouteComparison({ from, to, mode: homeMode });
+      if (data.routes && data.routes.length) {
+        const route = data.routes[0];
+        const durations = ensureDurationsByMode(route.durationByMode || {}, route, homeMode);
+        renderHomeCostComparison(durations);
+        localStorage.setItem("lastRoute", `${from} \u2192 ${to}`);
+        saveRouteSearch({ from, to, mode: homeMode });
+        setUserState();
+        renderLastTripReviews();
+        await addSearchedDestinationToTrending(to);
+        pendingRouteQuery = query;
+        if (loginNote) loginNote.textContent = "Cost comparison ready. Continue when you are ready.";
+        showContinueButton(true);
+        trackEvent("route_search", { source, status: "success", from, to, mode: homeMode });
+      } else {
+        if (loginNote) loginNote.textContent = "No time data found.";
+        if (homeCostBody) homeCostBody.textContent = "Cost comparison will appear once durations are available.";
+        showContinueButton(false);
+        trackEvent("route_search", { source, status: "no_results", from, to, mode: homeMode });
+      }
+    } catch (error) {
+      if (loginNote) loginNote.textContent = "Unable to load data. Check server.";
+      if (homeCostBody) homeCostBody.textContent = "Unable to load cost comparison.";
+      showContinueButton(false);
+      trackEvent("route_search", { source, status: "error", from, to, mode: homeMode, error: error.message });
+    }
+  };
+
   if (homeForm) {
+    const fromInput = homeForm.querySelector('input[name="from"]');
+    const toInput = homeForm.querySelector('input[name="to"]');
+
+    [fromInput, toInput].forEach((input) => {
+      if (!input) return;
+      input.addEventListener("input", () => {
+        setInputValidationState(input, false);
+      });
+    });
+
     homeForm.addEventListener("submit", async (event) => {
       event.preventDefault();
-
-      const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
-      if (!isLoggedIn) {
-        if (loginNote) loginNote.textContent = "Please sign in to search routes.";
-        window.location.href = "login.html";
-        return;
-      }
-
       const formData = new FormData(homeForm);
       const from = String(formData.get("from") || "").trim();
       const to = String(formData.get("to") || "").trim();
-      const query = new URLSearchParams({ mode: homeMode, from, to }).toString();
-
-      if (loginNote) loginNote.textContent = "Checking travel time...";
-      if (homeCostBody) homeCostBody.textContent = "Loading cost comparison...";
-      showContinueButton(false);
-
-      try {
-        const response = await fetch(
-          `${apiBase}/api/routes?mode=${encodeURIComponent(homeMode)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`
-        );
-        const data = await response.json();
-        if (data.routes && data.routes.length) {
-          const route = data.routes[0];
-          const durations = ensureDurationsByMode(route.durationByMode || {}, route, homeMode);
-          renderHomeCostComparison(durations);
-          localStorage.setItem("lastRoute", `${from} -> ${to}`);
-          await addSearchedDestinationToTrending(to);
-          pendingRouteQuery = query;
-          if (loginNote) loginNote.textContent = "Cost comparison ready. Continue when you are ready.";
-          showContinueButton(true);
-        } else {
-          if (loginNote) loginNote.textContent = "No time data found.";
-          if (homeCostBody) homeCostBody.textContent = "Cost comparison will appear once durations are available.";
-          showContinueButton(false);
-        }
-      } catch {
-        if (loginNote) loginNote.textContent = "Unable to load data. Check server.";
-        if (homeCostBody) homeCostBody.textContent = "Unable to load cost comparison.";
-        showContinueButton(false);
-      }
+      await runHomeRouteSearch({ from, to, source: "form" });
     });
   }
 });

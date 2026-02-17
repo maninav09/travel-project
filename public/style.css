@@ -247,6 +247,11 @@ main {
   box-shadow: var(--shadow);
 }
 
+.hero-media:focus-visible {
+  outline: 3px solid rgba(14, 143, 127, 0.5);
+  outline-offset: 3px;
+}
+
 .hero-media::before {
   content: "";
   position: absolute;
@@ -415,6 +420,15 @@ h1 {
   box-shadow: 0 12px 26px rgba(14, 143, 127, 0.32);
 }
 
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 3px solid rgba(14, 143, 127, 0.5);
+  outline-offset: 2px;
+}
+
 .planner {
   margin-top: 22px;
   border-radius: 24px;
@@ -455,6 +469,17 @@ h1 {
   color: var(--text);
   padding: 11px 12px;
   font: inherit;
+}
+
+.route-form input.is-invalid {
+  border-color: #c2462b;
+  box-shadow: 0 0 0 2px rgba(194, 70, 43, 0.2);
+}
+
+.input-hint {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
 }
 
 .form-note {
@@ -528,6 +553,55 @@ h1 {
 
 .trending {
   margin-top: 24px;
+}
+
+.saved-routes {
+  margin-top: 24px;
+}
+
+.saved-route-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 12px;
+}
+
+.saved-route-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  padding: 14px;
+}
+
+.saved-route-card h3 {
+  margin: 0 0 6px;
+  font-size: 20px;
+}
+
+.saved-route-card p,
+.saved-route-card small {
+  margin: 0;
+  color: var(--muted);
+}
+
+.saved-route-actions {
+  margin-top: 12px;
+  display: flex;
+  gap: 8px;
+}
+
+.saved-route-actions .primary-btn {
+  padding: 8px 12px;
+}
+
+.ghost-btn {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-strong);
+  color: var(--text);
+  padding: 8px 12px;
+  font-weight: 600;
+  cursor: pointer;
 }
 
 .nextgen-strip {

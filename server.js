@@ -175,6 +175,16 @@ const buildWeatherFallback = (city, summary = "Weather unavailable") => ({
 
 const newsletterSubscribers = new Set();
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i;
+const analyticsEvents = [];
+const allowedAnalyticsEvents = new Set([
+  "route_search",
+  "route_search_validation_error",
+  "continue_route_click",
+  "explore_click",
+  "trending_tile_click",
+  "saved_route_reuse",
+  "newsletter_subscribe",
+]);
 
 const pexelsCache = new Map();
 const getPexelsCache = (key) => {
@@ -657,6 +667,45 @@ app.post("/api/newsletter", async (req, res) => {
     console.error("Newsletter subscribe error:", error);
     return res.status(500).json({ error: "Unable to subscribe right now." });
   }
+});
+
+app.post("/api/analytics", (req, res) => {
+  try {
+    const event = String(req.body?.event || "").trim();
+    const page = String(req.body?.page || "web").trim();
+    const metadata =
+      req.body?.metadata && typeof req.body.metadata === "object"
+        ? req.body.metadata
+        : {};
+
+    if (!event || event.length > 80) {
+      return res.status(400).json({ error: "event is required" });
+    }
+    if (!allowedAnalyticsEvents.has(event)) {
+      return res.status(400).json({ error: "unsupported event" });
+    }
+
+    analyticsEvents.push({
+      event,
+      page: page.slice(0, 60),
+      metadata,
+      ip: req.ip || "",
+      at: new Date().toISOString(),
+    });
+    if (analyticsEvents.length > 500) analyticsEvents.shift();
+    return res.status(202).json({ ok: true });
+  } catch (error) {
+    console.error("Analytics error:", error);
+    return res.status(500).json({ error: "Unable to capture analytics event" });
+  }
+});
+
+app.get("/api/analytics/summary", (req, res) => {
+  const counts = analyticsEvents.reduce((acc, item) => {
+    acc[item.event] = (acc[item.event] || 0) + 1;
+    return acc;
+  }, {});
+  res.json({ total: analyticsEvents.length, counts });
 });
 
 /* ---------------- STATIC ---------------- */
