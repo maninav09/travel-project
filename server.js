@@ -185,6 +185,53 @@ const allowedAnalyticsEvents = new Set([
   "saved_route_reuse",
   "newsletter_subscribe",
 ]);
+const EMAILJS_SERVICE_ID = (process.env.EMAILJS_SERVICE_ID || "").trim();
+const EMAILJS_TEMPLATE_ID = (process.env.EMAILJS_TEMPLATE_ID || "").trim();
+const EMAILJS_PUBLIC_KEY = (process.env.EMAILJS_PUBLIC_KEY || "").trim();
+const EMAILJS_PRIVATE_KEY = (
+  process.env.EMAILJS_PRIVATE_KEY ||
+  process.env.EMAILJS_ACCESS_TOKEN ||
+  ""
+).trim();
+const EMAILJS_ENDPOINT = (
+  process.env.EMAILJS_ENDPOINT ||
+  "https://api.emailjs.com/api/v1.0/email/send"
+).trim();
+
+const sendNewsletterEmail = async ({ email, source }) => {
+  if (
+    !EMAILJS_SERVICE_ID ||
+    !EMAILJS_TEMPLATE_ID ||
+    !EMAILJS_PUBLIC_KEY ||
+    !EMAILJS_PRIVATE_KEY
+  ) {
+    return { sent: false, reason: "emailjs_not_configured" };
+  }
+
+  const response = await fetch(EMAILJS_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      service_id: EMAILJS_SERVICE_ID,
+      template_id: EMAILJS_TEMPLATE_ID,
+      user_id: EMAILJS_PUBLIC_KEY,
+      accessToken: EMAILJS_PRIVATE_KEY,
+      template_params: {
+        subscriber_email: email,
+        source,
+        app_name: "Travel Project",
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    const detail = await response.text().catch(() => "");
+    throw new Error(
+      `EmailJS send failed (${response.status})${detail ? `: ${detail}` : ""}`
+    );
+  }
+  return { sent: true };
+};
 
 const pexelsCache = new Map();
 const getPexelsCache = (key) => {
@@ -655,14 +702,28 @@ app.post("/api/newsletter", async (req, res) => {
         return res.status(200).json({ message: "You are already subscribed." });
       }
       await Newsletter.create({ email, source });
-      return res.status(201).json({ message: "Subscribed successfully." });
+      try {
+        await sendNewsletterEmail({ email, source });
+      } catch (mailError) {
+        console.warn("Newsletter email send warning:", mailError?.message || mailError);
+      }
+      return res.status(201).json({
+        message: "Subscribed successfully.",
+      });
     }
 
     if (newsletterSubscribers.has(email)) {
       return res.status(200).json({ message: "You are already subscribed." });
     }
     newsletterSubscribers.add(email);
-    return res.status(201).json({ message: "Subscribed successfully." });
+    try {
+      await sendNewsletterEmail({ email, source });
+    } catch (mailError) {
+      console.warn("Newsletter email send warning:", mailError?.message || mailError);
+    }
+    return res.status(201).json({
+      message: "Subscribed successfully.",
+    });
   } catch (error) {
     console.error("Newsletter subscribe error:", error);
     return res.status(500).json({ error: "Unable to subscribe right now." });
