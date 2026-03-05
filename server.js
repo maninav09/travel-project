@@ -198,6 +198,17 @@ const EMAILJS_ENDPOINT = (
   "https://api.emailjs.com/api/v1.0/email/send"
 ).trim();
 
+const getSubscriberDisplayName = (email) => {
+  const local = String(email || "").split("@")[0] || "Traveler";
+  const clean = local.replace(/[._-]+/g, " ").trim();
+  if (!clean) return "Traveler";
+  return clean
+    .split(" ")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+};
+
 const sendNewsletterEmail = async ({ email, source }) => {
   if (
     !EMAILJS_SERVICE_ID ||
@@ -207,6 +218,14 @@ const sendNewsletterEmail = async ({ email, source }) => {
   ) {
     return { sent: false, reason: "emailjs_not_configured" };
   }
+
+  const recipientName = getSubscriberDisplayName(email);
+  const welcomeSubject = `Welcome to Travel-route Connection, ${recipientName}!`;
+  const welcomeMessage =
+    `Hi ${recipientName}, welcome to Travel-route Connection website. ` +
+    "Here, you can plan your trip with us. " +
+    "Now you are connected with us, and we will provide new offers, discounts, and coupons on your email. " +
+    "Please plan your trip with us.";
 
   const response = await fetch(EMAILJS_ENDPOINT, {
     method: "POST",
@@ -218,8 +237,12 @@ const sendNewsletterEmail = async ({ email, source }) => {
       accessToken: EMAILJS_PRIVATE_KEY,
       template_params: {
         subscriber_email: email,
+        to_email: email,
+        recipient_name: recipientName,
         source,
         app_name: "Travel Project",
+        subject: welcomeSubject,
+        message: welcomeMessage,
       },
     }),
   });
@@ -696,34 +719,62 @@ app.post("/api/newsletter", async (req, res) => {
       return res.status(400).json({ error: "Please enter a valid email." });
     }
 
-    if (USE_MONGO) {
-      const existing = await Newsletter.findOne({ email }).lean();
-      if (existing) {
-        return res.status(200).json({ message: "You are already subscribed." });
-      }
-      await Newsletter.create({ email, source });
+    const buildSubscribeResponse = (statusCode, emailStatus) => {
+      const message =
+        emailStatus === "not_configured"
+          ? "Subscribed successfully. Email service is not configured yet."
+          : "Subscribed successfully.";
+      return res.status(statusCode).json({ message, emailStatus });
+    };
+
+    const sendWelcome = async () => {
+      let emailStatus = "sent";
       try {
-        await sendNewsletterEmail({ email, source });
+        const mailResult = await sendNewsletterEmail({ email, source });
+        if (mailResult?.reason === "emailjs_not_configured") {
+          emailStatus = "not_configured";
+        }
       } catch (mailError) {
+        emailStatus = "failed";
         console.warn("Newsletter email send warning:", mailError?.message || mailError);
       }
-      return res.status(201).json({
-        message: "Subscribed successfully.",
-      });
+      return emailStatus;
+    };
+
+    const subscribeInMemory = async () => {
+      if (newsletterSubscribers.has(email)) {
+        return res.status(200).json({
+          message: "You are already subscribed.",
+          emailStatus: "already_subscribed",
+        });
+      }
+      newsletterSubscribers.add(email);
+      const emailStatus = await sendWelcome();
+      return buildSubscribeResponse(201, emailStatus);
+    };
+
+    if (!USE_MONGO) {
+      return subscribeInMemory();
     }
 
-    if (newsletterSubscribers.has(email)) {
-      return res.status(200).json({ message: "You are already subscribed." });
-    }
-    newsletterSubscribers.add(email);
     try {
-      await sendNewsletterEmail({ email, source });
-    } catch (mailError) {
-      console.warn("Newsletter email send warning:", mailError?.message || mailError);
+      const existing = await Newsletter.findOne({ email }).lean();
+      if (existing) {
+        return res.status(200).json({
+          message: "You are already subscribed.",
+          emailStatus: "already_subscribed",
+        });
+      }
+      await Newsletter.create({ email, source });
+      const emailStatus = await sendWelcome();
+      return buildSubscribeResponse(201, emailStatus);
+    } catch (mongoError) {
+      console.warn(
+        "Newsletter MongoDB fallback enabled:",
+        mongoError?.message || mongoError
+      );
+      return subscribeInMemory();
     }
-    return res.status(201).json({
-      message: "Subscribed successfully.",
-    });
   } catch (error) {
     console.error("Newsletter subscribe error:", error);
     return res.status(500).json({ error: "Unable to subscribe right now." });
