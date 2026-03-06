@@ -1,4 +1,4 @@
-const CACHE_NAME = "route-connect-v1";
+const CACHE_NAME = "route-connect-v3";
 const OFFLINE_ASSETS = [
   "/",
   "/index.html",
@@ -11,8 +11,8 @@ const OFFLINE_ASSETS = [
   "/route.js",
   "/login.js",
   "/theme.js",
-  "/manifest.webmanifest",
-  "/img/flight.png",
+  "/manifest.webmanifest?v=3",
+  "/img/flight(1).png?v=11",
 ];
 
 self.addEventListener("install", (event) => {
