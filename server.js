@@ -198,6 +198,36 @@ const EMAILJS_ENDPOINT = (
   "https://api.emailjs.com/api/v1.0/email/send"
 ).trim();
 
+const maskConfigValue = (value, { head = 4, tail = 2 } = {}) => {
+  const text = String(value || "").trim();
+  if (!text) return "(missing)";
+  if (text.length <= head + tail) return `${text.slice(0, 1)}***`;
+  return `${text.slice(0, head)}***${text.slice(-tail)}`;
+};
+
+const logEmailJsConfigStatus = () => {
+  const serviceOk = /^service_/i.test(EMAILJS_SERVICE_ID);
+  const templateOk = /^template_/i.test(EMAILJS_TEMPLATE_ID);
+  const publicOk = EMAILJS_PUBLIC_KEY.length >= 8;
+  const privateOk = EMAILJS_PRIVATE_KEY.length >= 8;
+
+  console.log(
+    `[EmailJS] service_id=${maskConfigValue(EMAILJS_SERVICE_ID)} (${serviceOk ? "ok" : "check"})`
+  );
+  console.log(
+    `[EmailJS] template_id=${maskConfigValue(EMAILJS_TEMPLATE_ID)} (${templateOk ? "ok" : "check"})`
+  );
+  console.log(
+    `[EmailJS] public_key=${maskConfigValue(EMAILJS_PUBLIC_KEY)} (${publicOk ? "ok" : "check"})`
+  );
+  console.log(
+    `[EmailJS] private_key=${maskConfigValue(EMAILJS_PRIVATE_KEY)} (${privateOk ? "ok" : "check"})`
+  );
+  console.log(`[EmailJS] endpoint=${EMAILJS_ENDPOINT || "(missing)"}`);
+};
+
+logEmailJsConfigStatus();
+
 const getSubscriberDisplayName = (email) => {
   const local = String(email || "").split("@")[0] || "Traveler";
   const clean = local.replace(/[._-]+/g, " ").trim();
@@ -220,12 +250,12 @@ const sendNewsletterEmail = async ({ email, source }) => {
   }
 
   const recipientName = getSubscriberDisplayName(email);
-  const welcomeSubject = `Welcome to Travel-route Connection, ${recipientName}!`;
+  const siteName = "Travel-route Connection";
+  const welcomeSubject = `Welcome to ${siteName}, ${recipientName}!`;
   const welcomeMessage =
-    `Hi ${recipientName}, welcome to Travel-route Connection website. ` +
-    "Here, you can plan your trip with us. " +
-    "Now you are connected with us, and we will provide new offers, discounts, and coupons on your email. " +
-    "Please plan your trip with us.";
+    `Hi ${recipientName}, welcome to ${siteName}. ` +
+    "Plan your trip with us and discover smoother routes, practical travel tips, and better travel choices. " +
+    "Stay connected for exclusive offers, special discounts, and coupon updates delivered to your email.";
 
   const response = await fetch(EMAILJS_ENDPOINT, {
     method: "POST",
@@ -240,7 +270,7 @@ const sendNewsletterEmail = async ({ email, source }) => {
         to_email: email,
         recipient_name: recipientName,
         source,
-        app_name: "Travel Project",
+        app_name: siteName,
         subject: welcomeSubject,
         message: welcomeMessage,
       },
@@ -249,6 +279,18 @@ const sendNewsletterEmail = async ({ email, source }) => {
 
   if (!response.ok) {
     const detail = await response.text().catch(() => "");
+    if (
+      response.status === 400 &&
+      /template id not found/i.test(String(detail || ""))
+    ) {
+      return { sent: false, reason: "emailjs_template_not_found" };
+    }
+    if (
+      response.status === 403 &&
+      /non-browser applications/i.test(String(detail || ""))
+    ) {
+      return { sent: false, reason: "emailjs_non_browser_blocked" };
+    }
     throw new Error(
       `EmailJS send failed (${response.status})${detail ? `: ${detail}` : ""}`
     );
@@ -719,12 +761,34 @@ app.post("/api/newsletter", async (req, res) => {
       return res.status(400).json({ error: "Please enter a valid email." });
     }
 
-    const buildSubscribeResponse = (statusCode, emailStatus) => {
-      const message =
+    const buildSubscribeResponse = (
+      emailStatus,
+      { created = false, existing = false } = {}
+    ) => {
+      if (emailStatus === "sent") {
+        return res.status(created ? 201 : 200).json({
+          message: existing
+            ? "You are already subscribed. Welcome email sent again."
+            : "Subscribed successfully. Welcome email sent.",
+          emailStatus,
+        });
+      }
+      if (emailStatus === "already_subscribed") {
+        return res.status(200).json({
+          message: "You are already subscribed.",
+          emailStatus,
+        });
+      }
+
+      const error =
         emailStatus === "not_configured"
-          ? "Subscribed successfully. Email service is not configured yet."
-          : "Subscribed successfully.";
-      return res.status(statusCode).json({ message, emailStatus });
+          ? "Subscription saved, but welcome email was not sent because EmailJS is not configured."
+          : emailStatus === "non_browser_blocked"
+            ? "Subscription saved, but EmailJS is blocking server-side API calls. Enable non-browser/API access."
+            : emailStatus === "template_not_found"
+              ? "Subscription saved, but EmailJS template ID is invalid or missing. Update EMAILJS_TEMPLATE_ID."
+              : "Subscription saved, but welcome email was not sent.";
+      return res.status(502).json({ error, message: error, emailStatus });
     };
 
     const sendWelcome = async () => {
@@ -733,6 +797,10 @@ app.post("/api/newsletter", async (req, res) => {
         const mailResult = await sendNewsletterEmail({ email, source });
         if (mailResult?.reason === "emailjs_not_configured") {
           emailStatus = "not_configured";
+        } else if (mailResult?.reason === "emailjs_non_browser_blocked") {
+          emailStatus = "non_browser_blocked";
+        } else if (mailResult?.reason === "emailjs_template_not_found") {
+          emailStatus = "template_not_found";
         }
       } catch (mailError) {
         emailStatus = "failed";
@@ -743,14 +811,12 @@ app.post("/api/newsletter", async (req, res) => {
 
     const subscribeInMemory = async () => {
       if (newsletterSubscribers.has(email)) {
-        return res.status(200).json({
-          message: "You are already subscribed.",
-          emailStatus: "already_subscribed",
-        });
+        const emailStatus = await sendWelcome();
+        return buildSubscribeResponse(emailStatus, { existing: true });
       }
       newsletterSubscribers.add(email);
       const emailStatus = await sendWelcome();
-      return buildSubscribeResponse(201, emailStatus);
+      return buildSubscribeResponse(emailStatus, { created: true });
     };
 
     if (!USE_MONGO) {
@@ -760,14 +826,12 @@ app.post("/api/newsletter", async (req, res) => {
     try {
       const existing = await Newsletter.findOne({ email }).lean();
       if (existing) {
-        return res.status(200).json({
-          message: "You are already subscribed.",
-          emailStatus: "already_subscribed",
-        });
+        const emailStatus = await sendWelcome();
+        return buildSubscribeResponse(emailStatus, { existing: true });
       }
       await Newsletter.create({ email, source });
       const emailStatus = await sendWelcome();
-      return buildSubscribeResponse(201, emailStatus);
+      return buildSubscribeResponse(emailStatus, { created: true });
     } catch (mongoError) {
       console.warn(
         "Newsletter MongoDB fallback enabled:",

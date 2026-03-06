@@ -456,6 +456,14 @@ onReady(() => {
         if (!response || !response.ok) {
           throw new Error(lastError);
         }
+        const emailStatus = String(data?.emailStatus || "").trim().toLowerCase();
+        if (emailStatus && !["sent", "already_subscribed"].includes(emailStatus)) {
+          throw new Error(
+            data?.error ||
+              data?.message ||
+              "Subscription saved, but welcome email was not sent."
+          );
+        }
         setNewsletterNote(data?.message || "Subscribed successfully.");
         newsletterForm.reset();
         trackEvent("newsletter_subscribe", { status: "success" });

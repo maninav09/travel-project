@@ -44,52 +44,64 @@ const escapeRegex = (value) =>
 
 const fetchDistance = async (from, to, mode) => {
   if (!GOOGLE_KEY) return "";
-  const params = new URLSearchParams({
-    origins: from,
-    destinations: to,
-    key: GOOGLE_KEY,
-    mode: mode === "cab" ? "driving" : "transit",
-  });
+  try {
+    const params = new URLSearchParams({
+      origins: from,
+      destinations: to,
+      key: GOOGLE_KEY,
+      mode: mode === "cab" ? "driving" : "transit",
+    });
 
-  if (mode === "train" || mode === "bus") {
-    params.set("transit_mode", mode);
-    params.set("departure_time", "now");
+    if (mode === "train" || mode === "bus") {
+      params.set("transit_mode", mode);
+      params.set("departure_time", "now");
+    }
+
+    const url = `https://maps.googleapis.com/maps/api/distancematrix/json?${params.toString()}`;
+    const response = await fetch(url);
+    if (!response.ok) return "";
+    const data = await response.json();
+    const element = data?.rows?.[0]?.elements?.[0];
+    if (!element || element.status !== "OK") return "";
+    return element.duration?.text || "";
+  } catch {
+    return "";
   }
-
-  const url = `https://maps.googleapis.com/maps/api/distancematrix/json?${params.toString()}`;
-  const response = await fetch(url);
-  if (!response.ok) return "";
-  const data = await response.json();
-  const element = data?.rows?.[0]?.elements?.[0];
-  if (!element || element.status !== "OK") return "";
-  return element.duration?.text || "";
 };
 
 const geocodePlace = async (place) => {
   if (!GOOGLE_KEY || !place) return null;
-  const params = new URLSearchParams({ address: place, key: GOOGLE_KEY });
-  const url = `https://maps.googleapis.com/maps/api/geocode/json?${params.toString()}`;
-  const response = await fetch(url);
-  if (!response.ok) return null;
-  const data = await response.json();
-  const location = data?.results?.[0]?.geometry?.location;
-  if (!location) return null;
-  return { lat: location.lat, lng: location.lng };
+  try {
+    const params = new URLSearchParams({ address: place, key: GOOGLE_KEY });
+    const url = `https://maps.googleapis.com/maps/api/geocode/json?${params.toString()}`;
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    const data = await response.json();
+    const location = data?.results?.[0]?.geometry?.location;
+    if (!location) return null;
+    return { lat: location.lat, lng: location.lng };
+  } catch {
+    return null;
+  }
 };
 
 const nearbySearch = async (lat, lng, type) => {
   if (!GOOGLE_KEY) return [];
-  const params = new URLSearchParams({
-    location: `${lat},${lng}`,
-    radius: "7000",
-    type,
-    key: GOOGLE_KEY,
-  });
-  const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?${params.toString()}`;
-  const response = await fetch(url);
-  if (!response.ok) return [];
-  const data = await response.json();
-  return Array.isArray(data?.results) ? data.results : [];
+  try {
+    const params = new URLSearchParams({
+      location: `${lat},${lng}`,
+      radius: "7000",
+      type,
+      key: GOOGLE_KEY,
+    });
+    const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?${params.toString()}`;
+    const response = await fetch(url);
+    if (!response.ok) return [];
+    const data = await response.json();
+    return Array.isArray(data?.results) ? data.results : [];
+  } catch {
+    return [];
+  }
 };
 
 const photoUrl = (photoRef) =>
@@ -115,32 +127,32 @@ const mapPlaceToDetail = (place, fallbackImage) => {
 
 const callOpenAI = async (prompt) => {
   if (!OPENAI_KEY) return null;
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${OPENAI_KEY}`,
-    },
-    body: JSON.stringify({
-      model: OPENAI_MODEL,
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are a travel assistant. Return ONLY valid JSON with no extra text.",
-        },
-        { role: "user", content: prompt },
-      ],
-      temperature: 0.7,
-    }),
-  });
-  if (!response.ok) return null;
-  const data = await response.json();
-  const content = data?.choices?.[0]?.message?.content;
-  if (!content) return null;
   try {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${OPENAI_KEY}`,
+      },
+      body: JSON.stringify({
+        model: OPENAI_MODEL,
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are a travel assistant. Return ONLY valid JSON with no extra text.",
+          },
+          { role: "user", content: prompt },
+        ],
+        temperature: 0.7,
+      }),
+    });
+    if (!response.ok) return null;
+    const data = await response.json();
+    const content = data?.choices?.[0]?.message?.content;
+    if (!content) return null;
     return JSON.parse(content);
-  } catch (err) {
+  } catch {
     return null;
   }
 };
