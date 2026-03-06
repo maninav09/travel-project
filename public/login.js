@@ -1,4 +1,9 @@
 const modal = document.querySelector('[data-modal="auth"]');
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  });
+}
 const openButtons = document.querySelectorAll("[data-auth-open]");
 const closeTargets = document.querySelectorAll("[data-close], [data-auth-close]");
 const authForm = document.querySelector('[data-form="auth"]');
@@ -14,11 +19,7 @@ const lightboxImg = document.querySelector("[data-lightbox-img]");
 const lightboxClose = document.querySelector("[data-lightbox-close]");
 
 let authMode = "signin";
-const isLocalDevHost = ["localhost", "127.0.0.1"].includes(window.location.hostname);
-const apiBase =
-  isLocalDevHost && window.location.port && window.location.port !== "5000"
-    ? "http://127.0.0.1:5000"
-    : "";
+const apiBase = window.location.protocol === "file:" ? "http://127.0.0.1:5000" : "";
 
 const updateFieldVisibility = () => {
   const isSignup = authMode === "signup";

@@ -3,8 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0b5d52" />
     <title>Route Planner | Routes-connect</title>
-    <link rel="icon" type="image/png" href="img/internet.png?v=9" />
+    <link rel="icon" type="image/png" href="img/flight.png?v=9" />
+    <link rel="manifest" href="manifest.webmanifest" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -99,8 +101,11 @@
           <button class="action-btn" type="button" data-budget-splitter-btn>Smart Budget Splitter</button>
           <button class="action-btn" type="button" data-safety-dashboard-btn>Safety Dashboard</button>
           <button class="action-btn" type="button" data-last-trip-toggle>Last Trip Review</button>
+          <button class="action-btn" type="button" data-save-itinerary-btn>Save Itinerary</button>
+          <button class="action-btn" type="button" data-export-itinerary-btn>Export Itinerary</button>
           <button class="action-btn" type="button" data-share-btn>Share this trip</button>
         </div>
+        <p class="save-note" data-itinerary-note></p>
         <div class="essentials-empty" data-essentials-empty>
           Select an option above to view stays, places, previous trip reviews, and share tools.
         </div>

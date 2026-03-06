@@ -7,6 +7,12 @@ const onReady = (fn) => {
 };
 
 onReady(() => {
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("/sw.js").catch(() => {});
+    });
+  }
+
   const siteHeader = document.querySelector("[data-site-header]");
   const navToggle = document.querySelector("[data-nav-toggle]");
   const mainNav = document.querySelector("[data-main-nav]");
@@ -67,11 +73,8 @@ onReady(() => {
   const newsletterForm = document.querySelector("[data-newsletter-form]");
   const newsletterNote = document.querySelector("[data-newsletter-note]");
   const lastTripReviewsBox = document.querySelector("[data-last-trip-reviews]");
-  const isLocalDevHost = ["localhost", "127.0.0.1"].includes(window.location.hostname);
-  const apiBase =
-    isLocalDevHost && window.location.port && window.location.port !== "5000"
-      ? "http://127.0.0.1:5000"
-      : "";
+  const apiBase = "";
+  const apiEnabled = window.location.protocol !== "file:";
   const homeLogic = window.HomeLogic || {
     normalizeHeroIndex: (index, total) => {
       const max = Number(total) || 0;
@@ -106,10 +109,7 @@ onReady(() => {
     },
   };
   const savedRoutesKey = "homeSavedRoutes";
-  const analyticsEndpoints = [
-    `${apiBase}/api/analytics`,
-    "http://127.0.0.1:5000/api/analytics",
-  ];
+  const analyticsEndpoint = `${apiBase}/api/analytics`;
   let pendingRouteQuery = "";
   let homeMode = "Train";
 
@@ -148,6 +148,35 @@ onReady(() => {
   }
 
   setUserState();
+
+  const syncUserPreferences = async () => {
+    if (!apiEnabled) return;
+    const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
+    const userEmail = String(localStorage.getItem("userEmail") || "").trim().toLowerCase();
+    if (!isLoggedIn || !userEmail) return;
+    const storedInterests =
+      localStorage
+        .getItem("preferredInterests")
+        ?.split(",")
+        .map((item) => item.trim())
+        .filter(Boolean) || [];
+    const preferences = {
+      budget: localStorage.getItem("preferredBudget") || "mid-range",
+      pace: localStorage.getItem("preferredPace") || "balanced",
+      interests: storedInterests,
+      notifications: ["email", "in-app"],
+    };
+    try {
+      await fetch(`${apiBase}/api/enhancements/profile/preferences`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: userEmail, preferences }),
+      });
+    } catch {
+      // keep local behavior if profile sync fails
+    }
+  };
+  syncUserPreferences();
 
   const updateHeaderState = () => {
     if (!siteHeader) return;
@@ -433,38 +462,23 @@ onReady(() => {
       setNewsletterNote("Subscribing...");
       try {
         const payload = JSON.stringify({ email, source: "index-footer" });
-        const endpoints = [`${apiBase}/api/newsletter`, "http://127.0.0.1:5000/api/newsletter"];
-        let response = null;
-        let data = null;
-        let lastError = "Unable to subscribe.";
-
-        for (const endpoint of endpoints) {
-          try {
-            response = await fetch(endpoint, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: payload,
-            });
-            data = await response.json();
-            if (response.ok) break;
-            lastError = data?.error || data?.message || `Request failed (${response.status})`;
-          } catch {
-            // Try next endpoint.
-          }
+        const response = await fetch(`${apiBase}/api/newsletter`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: payload,
+        });
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data?.error || data?.message || `Request failed (${response.status})`);
         }
-
-        if (!response || !response.ok) {
-          throw new Error(lastError);
-        }
-        const emailStatus = String(data?.emailStatus || "").trim().toLowerCase();
-        if (emailStatus && !["sent", "already_subscribed"].includes(emailStatus)) {
-          throw new Error(
-            data?.error ||
-              data?.message ||
-              "Subscription saved, but welcome email was not sent."
-          );
-        }
-        setNewsletterNote(data?.message || "Subscribed successfully.");
+        const message = String(data?.message || "").trim();
+        const isAlreadySubscribed = /already subscribed/i.test(message);
+        setNewsletterNote(
+          isAlreadySubscribed
+            ? message || "You are already subscribed. Welcome email sent again."
+            : "Subscribed successfully.",
+          false
+        );
         newsletterForm.reset();
         trackEvent("newsletter_subscribe", { status: "success" });
       } catch (error) {
@@ -526,6 +540,7 @@ onReady(() => {
   let destinationSuggestions = defaultDestinationSuggestions.slice();
   let lastSuggestionSignature = "";
   let lastSuggestionCities = [];
+  let exploredSuggestionCities = [];
 
   const trendingStorageKey = "trendingDestinations";
   const defaultTrending = [
@@ -555,6 +570,15 @@ onReady(() => {
     localStorage.setItem(trendingStorageKey, JSON.stringify(items));
   };
 
+  const clearSavedDestinationState = () => {
+    lastSuggestionSignature = "";
+    lastSuggestionCities = [];
+    destinationSuggestions = [];
+    exploredSuggestionCities = [];
+    saveStoredTrending([]);
+    renderTrendingCards();
+  };
+
   const escapeHtml = (value) =>
     String(value || "")
       .replace(/&/g, "&amp;")
@@ -563,33 +587,29 @@ onReady(() => {
       .replace(/"/g, "&quot;")
       .replace(/'/g, "&#39;");
 
-  const getUniqueEndpoints = (items) => Array.from(new Set(items.filter(Boolean)));
-
   const trackEvent = (event, metadata = {}) => {
+    if (!apiEnabled) return;
     const payload = JSON.stringify({
       event,
       page: "home",
       metadata,
       ts: new Date().toISOString(),
     });
-    const endpoints = getUniqueEndpoints(analyticsEndpoints);
-    endpoints.forEach((endpoint) => {
-      try {
-        if (navigator.sendBeacon) {
-          const blob = new Blob([payload], { type: "application/json" });
-          navigator.sendBeacon(endpoint, blob);
-          return;
-        }
-      } catch {
-        // Fallback to fetch below.
+    try {
+      if (navigator.sendBeacon) {
+        const blob = new Blob([payload], { type: "application/json" });
+        navigator.sendBeacon(analyticsEndpoint, blob);
+        return;
       }
-      fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: payload,
-        keepalive: true,
-      }).catch(() => {});
-    });
+    } catch {
+      // Fallback to fetch below.
+    }
+    fetch(analyticsEndpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: payload,
+      keepalive: true,
+    }).catch(() => {});
   };
 
   const getTripHistory = () => {
@@ -815,6 +835,10 @@ onReady(() => {
       .join("||");
 
   const fetchAiDestinationSuggestions = async () => {
+    if (!apiEnabled) {
+      destinationSuggestions = [];
+      return;
+    }
     const fromInput = homeForm ? homeForm.querySelector('input[name="from"]') : null;
     const toInput = homeForm ? homeForm.querySelector('input[name="to"]') : null;
     const from = String(fromInput?.value || "").trim();
@@ -833,12 +857,15 @@ onReady(() => {
             from,
             to,
             history,
-            previousCities: lastSuggestionCities,
+            previousCities: Array.from(
+              new Set([...(Array.isArray(lastSuggestionCities) ? lastSuggestionCities : []), ...exploredSuggestionCities])
+            ).slice(0, 16),
+            requireAi: true,
             nonce: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
           }),
         });
-        if (!response.ok) return [];
         const data = await response.json();
+        if (!response.ok) return [];
         return Array.isArray(data?.suggestions) ? data.suggestions.slice(0, 4) : [];
       };
 
@@ -857,9 +884,12 @@ onReady(() => {
         destinationSuggestions = nextSuggestions;
         lastSuggestionSignature = nextSignature;
         lastSuggestionCities = nextSuggestions.map((item) => String(item.city || "").trim()).filter(Boolean);
+        exploredSuggestionCities = Array.from(
+          new Set([...exploredSuggestionCities, ...lastSuggestionCities])
+        ).slice(-24);
       }
     } catch {
-      // Keep defaults on network error.
+      destinationSuggestions = [];
     }
   };
 
@@ -882,10 +912,12 @@ onReady(() => {
   const renderSuggestions = () => {
     if (!suggestionsGrid) return;
     suggestionsGrid.innerHTML = "";
-    const cards =
-      Array.isArray(destinationSuggestions) && destinationSuggestions.length
-        ? destinationSuggestions
-        : defaultDestinationSuggestions;
+    const cards = Array.isArray(destinationSuggestions) ? destinationSuggestions : [];
+    if (!cards.length) {
+      suggestionsGrid.innerHTML =
+        `<p class="suggestions-loading">Unable to load fresh AI suggestions. Please try again.</p>`;
+      return;
+    }
     cards.forEach((item) => {
       const badges = (item.badges || []).map((b) => `<span class="badge">${b}</span>`).join("");
       const card = document.createElement("button");
@@ -967,8 +999,22 @@ onReady(() => {
     if (suggestionsGrid) {
       suggestionsGrid.innerHTML = `<p class="suggestions-loading">Loading AI destination suggestions...</p>`;
     }
-    destinationSuggestions = [];
+    if (!apiEnabled) {
+      if (suggestionsGrid) {
+        suggestionsGrid.innerHTML =
+          `<p class="suggestions-loading">Run this page through your Node server to load AI suggestions.</p>`;
+      }
+      return;
+    }
+    clearSavedDestinationState();
     await fetchAiDestinationSuggestions();
+    if (!destinationSuggestions.length) {
+      if (suggestionsGrid) {
+        suggestionsGrid.innerHTML =
+          `<p class="suggestions-loading">Unable to load AI suggestions right now. Please try again.</p>`;
+      }
+      return;
+    }
     renderSuggestions();
   };
 
@@ -997,27 +1043,13 @@ onReady(() => {
   });
 
   const fetchRouteComparison = async ({ from, to, mode }) => {
-    const endpoints = getUniqueEndpoints([
-      `${apiBase}/api/routes`,
-      "http://127.0.0.1:5000/api/routes",
-    ]);
-    let lastError = "Unable to load route data.";
-
-    for (const endpoint of endpoints) {
-      try {
-        const response = await fetch(
-          `${endpoint}?mode=${encodeURIComponent(mode)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
-          { cache: "no-store" }
-        );
-        const data = await response.json().catch(() => ({}));
-        if (response.ok) return data;
-        lastError = data?.error || `Request failed (${response.status})`;
-      } catch {
-        // Try next endpoint.
-      }
-    }
-
-    throw new Error(lastError);
+    const response = await fetch(
+      `${apiBase}/api/routes?mode=${encodeURIComponent(mode)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+      { cache: "no-store" }
+    );
+    const data = await response.json().catch(() => ({}));
+    if (response.ok) return data;
+    throw new Error(data?.error || `Request failed (${response.status})`);
   };
 
   const setInputValidationState = (input, hasError) => {

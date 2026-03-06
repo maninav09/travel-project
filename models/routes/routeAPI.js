@@ -79,6 +79,34 @@ const minutesToText = (minutes) => {
   return parts.join(" ");
 };
 
+const parseDurationToMinutes = (value) => {
+  if (!value) return null;
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  const text = String(value).toLowerCase();
+  const dayMatch = text.match(/(\d+)\s*(d|day|days)\b/);
+  const hourMatch = text.match(/(\d+)\s*(h|hr|hrs|hour|hours)\b/);
+  const minMatch = text.match(/(\d+)\s*(m|min|mins|minute|minutes)\b/);
+  const days = dayMatch ? Number(dayMatch[1]) : 0;
+  const hours = hourMatch ? Number(hourMatch[1]) : 0;
+  const mins = minMatch ? Number(minMatch[1]) : 0;
+  const total = days * 24 * 60 + hours * 60 + mins;
+  return total > 0 ? total : null;
+};
+
+const estimateCostRange = (mode, minutes) => {
+  if (!minutes) return null;
+  const hours = Math.max(minutes / 60, 0.5);
+  const rateMap = {
+    train: { min: 150, max: 320, base: 150 },
+    bus: { min: 120, max: 240, base: 120 },
+    cab: { min: 700, max: 1300, base: 800 },
+  };
+  const rates = rateMap[mode] || rateMap.train;
+  const low = Math.max(rates.base, Math.round(hours * rates.min));
+  const high = Math.max(rates.base + 200, Math.round(hours * rates.max));
+  return { low, high, mid: Math.round((low + high) / 2) };
+};
+
 const geocodeTextWithNominatim = async (text) => {
   const q = String(text || "").trim();
   if (!q) return null;
@@ -412,6 +440,64 @@ router.get("/", async (req, res) => {
   } catch (error) {
     console.error("Fetch routes error:", error);
     res.status(500).json({ error: "Failed to fetch routes" });
+  }
+});
+
+router.get("/intelligence", async (req, res) => {
+  try {
+    const from = String(req.query?.from || "").trim();
+    const to = String(req.query?.to || "").trim();
+    if (!from || !to) {
+      return res.status(400).json({ error: "from and to are required" });
+    }
+
+    const durationByMode = await getDurationByMode(from, to);
+    const rows = ["train", "bus", "cab"].map((mode) => {
+      const duration = durationByMode[mode] || "";
+      const minutes = parseDurationToMinutes(duration);
+      const cost = estimateCostRange(mode, minutes);
+      return {
+        mode,
+        duration,
+        minutes: minutes || null,
+        cost,
+      };
+    });
+
+    const available = rows.filter((r) => r.minutes && r.cost);
+    const cheapest = available.length
+      ? available.reduce((a, b) => (a.cost.mid <= b.cost.mid ? a : b))
+      : null;
+    const fastest = available.length
+      ? available.reduce((a, b) => (a.minutes <= b.minutes ? a : b))
+      : null;
+    const balanced = available.length
+      ? available.reduce((best, item) => {
+          const score = item.minutes + item.cost.mid / 12;
+          const bestScore = best.minutes + best.cost.mid / 12;
+          return score < bestScore ? item : best;
+        })
+      : null;
+
+    return res.json({
+      from,
+      to,
+      generatedAt: new Date().toISOString(),
+      durationByMode,
+      insights: {
+        cheapest: cheapest ? cheapest.mode : "",
+        fastest: fastest ? fastest.mode : "",
+        balanced: balanced ? balanced.mode : "",
+      },
+      estimates: rows.map((row) => ({
+        mode: row.mode,
+        duration: row.duration || "N/A",
+        cost: row.cost ? `Rs ${row.cost.low} - Rs ${row.cost.high}` : "N/A",
+      })),
+    });
+  } catch (error) {
+    console.error("Route intelligence error:", error);
+    return res.status(500).json({ error: "Unable to build route intelligence" });
   }
 });
 

@@ -12,7 +12,7 @@ const exploreRoutes = require("./models/routes/exploreRoute");
 const trainApi = require("./models/routes/trainAPI");
 const busApi = require("./models/routes/busAPI");
 const cabApi = require("./models/routes/cabAPI");
-const Newsletter = require("./models/newsletter");
+const enhancementsApi = require("./models/routes/enhancementsAPI");
 
 const app = express();
 console.log("Server file:", __filename);
@@ -27,8 +27,21 @@ process.on("unhandledRejection", (err) => {
 
 /* ---------------- MIDDLEWARE ---------------- */
 app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use((req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader("Permissions-Policy", "geolocation=(), microphone=(), camera=()");
+  next();
+});
+app.use(express.json({ limit: "250kb" }));
+app.use(express.urlencoded({ extended: true, limit: "250kb" }));
+app.use((req, res, next) => {
+  if (req.path.includes(".env")) {
+    return res.status(403).json({ error: "Forbidden" });
+  }
+  next();
+});
 
 const rateLimit = ({ windowMs, limit }) => {
   const store = new Map();
@@ -173,7 +186,6 @@ const buildWeatherFallback = (city, summary = "Weather unavailable") => ({
   },
 });
 
-const newsletterSubscribers = new Set();
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i;
 const analyticsEvents = [];
 const allowedAnalyticsEvents = new Set([
@@ -266,8 +278,17 @@ const sendNewsletterEmail = async ({ email, source }) => {
       user_id: EMAILJS_PUBLIC_KEY,
       accessToken: EMAILJS_PRIVATE_KEY,
       template_params: {
-        subscriber_email: email,
+        email,
+        to: email,
         to_email: email,
+        recipient: email,
+        recipient_email: email,
+        user_email: email,
+        from_email: "no-reply@route-connect.com",
+        reply_to: "no-reply@route-connect.com",
+        to_name: recipientName,
+        from_name: siteName,
+        subscriber_email: email,
         recipient_name: recipientName,
         source,
         app_name: siteName,
@@ -297,6 +318,77 @@ const sendNewsletterEmail = async ({ email, source }) => {
   }
   return { sent: true };
 };
+
+app.post("/api/newsletter/debug", async (req, res) => {
+  try {
+    const email = String(req.body?.email || "").trim().toLowerCase();
+    const source = String(req.body?.source || "debug").trim();
+    const runSendTest = Boolean(req.body?.runSendTest);
+
+    const config = {
+      serviceIdMasked: maskConfigValue(EMAILJS_SERVICE_ID),
+      templateIdMasked: maskConfigValue(EMAILJS_TEMPLATE_ID),
+      publicKeyMasked: maskConfigValue(EMAILJS_PUBLIC_KEY),
+      privateKeyMasked: maskConfigValue(EMAILJS_PRIVATE_KEY),
+      endpoint: EMAILJS_ENDPOINT || "(missing)",
+      checks: {
+        serviceIdFormatOk: /^service_/i.test(EMAILJS_SERVICE_ID),
+        templateIdFormatOk: /^template_/i.test(EMAILJS_TEMPLATE_ID),
+        publicKeyPresent: EMAILJS_PUBLIC_KEY.length >= 8,
+        privateKeyPresent: EMAILJS_PRIVATE_KEY.length >= 8,
+      },
+    };
+
+    if (!runSendTest) {
+      return res.json({
+        ok: true,
+        mode: "config_only",
+        config,
+        hint:
+          "Set runSendTest=true with a valid email in request body to test live EmailJS delivery.",
+      });
+    }
+
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({
+        ok: false,
+        error: "Valid email is required when runSendTest=true.",
+        config,
+      });
+    }
+
+    try {
+      const result = await sendNewsletterEmail({ email, source });
+      return res.json({
+        ok: true,
+        mode: "send_test",
+        config,
+        test: {
+          email,
+          source,
+          sent: Boolean(result?.sent),
+          reason: result?.reason || "sent",
+        },
+      });
+    } catch (error) {
+      return res.status(502).json({
+        ok: false,
+        mode: "send_test",
+        config,
+        test: {
+          email,
+          source,
+          sent: false,
+          reason: "request_failed",
+          detail: error?.message || "Unknown EmailJS error",
+        },
+      });
+    }
+  } catch (error) {
+    console.error("Newsletter debug error:", error);
+    return res.status(500).json({ ok: false, error: "Newsletter debug failed" });
+  }
+});
 
 const pexelsCache = new Map();
 const getPexelsCache = (key) => {
@@ -596,7 +688,7 @@ app.get("/api/photos/pexels", async (req, res) => {
     }
 
     if (!PEXELS_KEY) {
-      return res.status(200).json({ image: "" });
+      return res.status(200).json({ image: "", source: "pexels" });
     }
 
     const parts = searchBase.split(/\s+/).filter(Boolean);
@@ -668,7 +760,7 @@ app.get("/api/photos/pexels", async (req, res) => {
     res.json(payload);
   } catch (error) {
     console.error("Pexels error:", error);
-    res.status(500).json({ error: "Failed to load photo" });
+    res.status(200).json({ image: "", source: "pexels" });
   }
 });
 
@@ -676,77 +768,110 @@ app.post("/api/destinations/suggest", async (req, res) => {
   try {
     const from = String(req.body?.from || "").trim();
     const to = String(req.body?.to || "").trim();
+    const requireAi = Boolean(req.body?.requireAi);
     const history = Array.isArray(req.body?.history)
       ? req.body.history.map((v) => String(v || "").trim()).filter(Boolean).slice(0, 5)
       : [];
     const previousCities = Array.isArray(req.body?.previousCities)
-      ? req.body.previousCities.map((v) => String(v || "").trim()).filter(Boolean).slice(0, 8)
+      ? req.body.previousCities.map((v) => String(v || "").trim()).filter(Boolean).slice(0, 24)
       : [];
+    const excludedCities = new Set(previousCities.map((v) => v.toLowerCase()));
 
-    let suggestions = pickUniqueSuggestions(defaultDestinationSuggestions(), 4, previousCities);
+    let suggestions = requireAi ? [] : pickUniqueSuggestions(defaultDestinationSuggestions(), 4, previousCities);
+    let aiSucceeded = false;
 
     if (OPENAI_KEY) {
-      const randomNonce = Math.random().toString(36).slice(2, 10);
-      const avoidLine = previousCities.length
-        ? `Avoid these cities in this response: ${previousCities.join(", ")}.`
-        : "";
-      const prompt = [
-        "Suggest exactly 4 destination cards in India.",
-        "Use these themes exactly once each:",
-        "1) Traditional",
-        "2) Religious Place",
-        "3) Indian Tourist",
-        "4) Famous City",
-        `Traveler context: from=${from || "unknown"}, to=${to || "unknown"}, recentTrips=${history.join(", ") || "none"}.`,
-        `Variation seed: ${randomNonce}`,
-        avoidLine,
-        "Return ONLY valid JSON with shape:",
-        '{"suggestions":[{"city":"...","state":"...","tagline":"...","mode":"Train|Bus|Cab","badges":["...","..."],"wikipediaQuery":"..."}]}',
-        "Keep tagline under 12 words. Keep wikipediaQuery as a city/place title.",
-      ].join("\n");
+      for (let attempt = 0; attempt < 3 && !aiSucceeded; attempt += 1) {
+        const randomNonce = Math.random().toString(36).slice(2, 10);
+        const avoidLine = previousCities.length
+          ? `Avoid these cities in this response: ${previousCities.join(", ")}.`
+          : "";
+        const prompt = [
+          "Suggest exactly 4 destination cards in India.",
+          "Use these themes exactly once each:",
+          "1) Traditional",
+          "2) Religious Place",
+          "3) Indian Tourist",
+          "4) Famous City",
+          "All 4 cities must be in India and must be different from each other.",
+          `Traveler context: from=${from || "unknown"}, to=${to || "unknown"}, recentTrips=${history.join(", ") || "none"}.`,
+          `Variation seed: ${randomNonce}`,
+          avoidLine,
+          "Return ONLY valid JSON with shape:",
+          '{"suggestions":[{"city":"...","state":"...","tagline":"...","mode":"Train|Bus|Cab","badges":["...","..."],"wikipediaQuery":"..."}]}',
+          "Keep tagline under 12 words. Keep wikipediaQuery as a city/place title.",
+        ].join("\n");
 
-      try {
-        const response = await fetch("https://api.openai.com/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${OPENAI_KEY}`,
-          },
-          body: JSON.stringify({
-            model: OPENAI_MODEL,
-            messages: [
-              {
-                role: "system",
-                content:
-                  "You are a travel assistant. Return JSON only. No markdown, no explanation.",
-              },
-              { role: "user", content: prompt },
-            ],
-            temperature: 1.05,
-          }),
-        });
+        try {
+          const response = await fetch("https://api.openai.com/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${OPENAI_KEY}`,
+            },
+            body: JSON.stringify({
+              model: OPENAI_MODEL,
+              messages: [
+                {
+                  role: "system",
+                  content:
+                    "You are a travel assistant. Return JSON only. No markdown, no explanation.",
+                },
+                { role: "user", content: prompt },
+              ],
+              temperature: 1.05,
+            }),
+          });
 
-        if (response.ok) {
+          if (!response.ok) continue;
           const data = await response.json();
           const content = String(data?.choices?.[0]?.message?.content || "").trim();
           const parsed = parseFirstJsonObject(content);
           const aiList = Array.isArray(parsed?.suggestions) ? parsed.suggestions : [];
-          const normalized = aiList.map(normalizeSuggestionItem).filter(Boolean).slice(0, 4);
+          const normalized = aiList
+            .map(normalizeSuggestionItem)
+            .filter(Boolean)
+            .filter((item) => !excludedCities.has(String(item.city || "").toLowerCase()))
+            .slice(0, 4);
           if (normalized.length === 4) {
             suggestions = normalized;
+            aiSucceeded = true;
           }
+        } catch (error) {
+          console.warn("AI destination suggestions unavailable:", error?.message || error);
         }
-      } catch (error) {
-        console.warn("AI destination suggestions unavailable:", error?.message || error);
       }
     }
 
+    if (requireAi && !aiSucceeded) {
+      return res.status(200).json({
+        suggestions: [],
+        error: "AI suggestions unavailable right now. Please try again.",
+      });
+    }
+
     const suggestionsWithImages = await enrichSuggestionImages(suggestions);
+    const completeWithImages = suggestionsWithImages.filter(
+      (item) => String(item?.image || "").trim().length > 0
+    );
+    if (requireAi && completeWithImages.length < 4) {
+      return res.status(200).json({
+        suggestions: [],
+        error:
+          "AI suggestions are available, but Wikipedia photos could not be loaded for all cards. Please retry.",
+      });
+    }
     const payload = { suggestions: suggestionsWithImages };
     res.set("Cache-Control", "no-store");
     res.json(payload);
   } catch (error) {
     console.error("AI destination suggestion error:", error);
+    if (Boolean(req.body?.requireAi)) {
+      return res.status(200).json({
+        suggestions: [],
+        error: "AI suggestions unavailable right now. Please try again.",
+      });
+    }
     const fallback = await enrichSuggestionImages(shuffleList(defaultDestinationSuggestions()));
     res.set("Cache-Control", "no-store");
     res.json({ suggestions: fallback });
@@ -761,34 +886,27 @@ app.post("/api/newsletter", async (req, res) => {
       return res.status(400).json({ error: "Please enter a valid email." });
     }
 
-    const buildSubscribeResponse = (
-      emailStatus,
-      { created = false, existing = false } = {}
-    ) => {
+    const buildSubscribeResponse = (emailStatus) => {
       if (emailStatus === "sent") {
-        return res.status(created ? 201 : 200).json({
-          message: existing
-            ? "You are already subscribed. Welcome email sent again."
-            : "Subscribed successfully. Welcome email sent.",
-          emailStatus,
-        });
-      }
-      if (emailStatus === "already_subscribed") {
         return res.status(200).json({
-          message: "You are already subscribed.",
+          message: "Subscribed successfully. Welcome email sent.",
           emailStatus,
         });
       }
 
-      const error =
+      const warning =
         emailStatus === "not_configured"
-          ? "Subscription saved, but welcome email was not sent because EmailJS is not configured."
+          ? "Request accepted, but welcome email was not sent because EmailJS is not configured."
           : emailStatus === "non_browser_blocked"
-            ? "Subscription saved, but EmailJS is blocking server-side API calls. Enable non-browser/API access."
+            ? "Request accepted, but EmailJS is blocking server-side API calls. Enable non-browser/API access."
             : emailStatus === "template_not_found"
-              ? "Subscription saved, but EmailJS template ID is invalid or missing. Update EMAILJS_TEMPLATE_ID."
-              : "Subscription saved, but welcome email was not sent.";
-      return res.status(502).json({ error, message: error, emailStatus });
+              ? "Request accepted, but EmailJS template ID is invalid or missing. Update EMAILJS_TEMPLATE_ID."
+              : "Request accepted, but welcome email was not sent.";
+      return res.status(200).json({
+        message: warning,
+        warning,
+        emailStatus,
+      });
     };
 
     const sendWelcome = async () => {
@@ -809,36 +927,9 @@ app.post("/api/newsletter", async (req, res) => {
       return emailStatus;
     };
 
-    const subscribeInMemory = async () => {
-      if (newsletterSubscribers.has(email)) {
-        const emailStatus = await sendWelcome();
-        return buildSubscribeResponse(emailStatus, { existing: true });
-      }
-      newsletterSubscribers.add(email);
-      const emailStatus = await sendWelcome();
-      return buildSubscribeResponse(emailStatus, { created: true });
-    };
-
-    if (!USE_MONGO) {
-      return subscribeInMemory();
-    }
-
-    try {
-      const existing = await Newsletter.findOne({ email }).lean();
-      if (existing) {
-        const emailStatus = await sendWelcome();
-        return buildSubscribeResponse(emailStatus, { existing: true });
-      }
-      await Newsletter.create({ email, source });
-      const emailStatus = await sendWelcome();
-      return buildSubscribeResponse(emailStatus, { created: true });
-    } catch (mongoError) {
-      console.warn(
-        "Newsletter MongoDB fallback enabled:",
-        mongoError?.message || mongoError
-      );
-      return subscribeInMemory();
-    }
+    // Privacy mode: do not persist newsletter emails in DB or memory.
+    const emailStatus = await sendWelcome();
+    return buildSubscribeResponse(emailStatus);
   } catch (error) {
     console.error("Newsletter subscribe error:", error);
     return res.status(500).json({ error: "Unable to subscribe right now." });
@@ -904,6 +995,7 @@ app.use("/api/explore", exploreRoutes);
 app.use("/api/trains", trainApi);
 app.use("/api/buses", busApi);
 app.use("/api/cabs", cabApi);
+app.use("/api/enhancements", enhancementsApi);
 
 /* ---------------- STATIC PAGES ---------------- */
 app.get("/", (req, res) => {

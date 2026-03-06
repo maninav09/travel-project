@@ -1,3 +1,9 @@
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  });
+}
+
 const routeForm = document.querySelector("[data-route-form]");
 const summaryBox = document.querySelector("[data-summary]");
 const mapFrame = document.querySelector("[data-map-frame]");
@@ -49,6 +55,9 @@ const essentialsEmpty = document.querySelector("[data-essentials-empty]");
 const placeFilters = Array.from(document.querySelectorAll("[data-filter]"));
 const weatherBody = document.querySelector("[data-weather-body]");
 const shareBtn = document.querySelector("[data-share-btn]");
+const saveItineraryBtn = document.querySelector("[data-save-itinerary-btn]");
+const exportItineraryBtn = document.querySelector("[data-export-itinerary-btn]");
+const itineraryNote = document.querySelector("[data-itinerary-note]");
 const actionButtons = Array.from(document.querySelectorAll(".action-btn"));
 const placeReviewBox = document.querySelector("[data-place-review-box]");
 const placeReviewTitle = document.querySelector("[data-place-review-title]");
@@ -84,12 +93,9 @@ let isCabOpen = false;
 let currentPlaceFilter = "all";
 let currentWeatherSummary = "";
 let currentWeatherTemp = "";
+let currentShareCode = "";
 
-const isLocalDevHost = ["localhost", "127.0.0.1"].includes(window.location.hostname);
-const apiBase =
-  isLocalDevHost && window.location.port && window.location.port !== "5000"
-    ? "http://127.0.0.1:5000"
-    : "";
+const apiBase = window.location.protocol === "file:" ? "http://127.0.0.1:5000" : "";
 const tripHistoryKey = "tripHistory";
 const tripReviewsKey = "tripReviews";
 const placeReviewsKey = "placeReviews";
@@ -113,6 +119,29 @@ const setJourneyStats = ({ mode, duration, weather } = {}) => {
   if (statMode && mode) statMode.textContent = `Mode: ${mode}`;
   if (statDuration && duration) statDuration.textContent = `Duration: ${duration}`;
   if (statWeather && weather) statWeather.textContent = `Weather: ${weather}`;
+};
+
+const setItineraryMessage = (text, isError = false) => {
+  if (!itineraryNote) return;
+  itineraryNote.textContent = text;
+  itineraryNote.classList.toggle("is-error", Boolean(isError));
+};
+
+const notifyTripReady = (title, body) => {
+  if (!("Notification" in window)) return;
+  if (Notification.permission === "granted") {
+    new Notification(title, { body });
+    return;
+  }
+  if (Notification.permission !== "denied") {
+    Notification.requestPermission()
+      .then((perm) => {
+        if (perm === "granted") {
+          new Notification(title, { body });
+        }
+      })
+      .catch(() => {});
+  }
 };
 
 const syncEssentialsEmptyState = () => {
@@ -1032,6 +1061,24 @@ const loadRoute = async (from, to, mode) => {
     const headlineDuration =
       durations[normalizeModeKey(displayMode)] || route.duration || "N/A";
     setJourneyStats({ mode: displayMode, duration: headlineDuration });
+    let intelligenceLine = "";
+    try {
+      const intelRes = await fetch(
+        `${apiBase}/api/routes/intelligence?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+        { cache: "no-store" }
+      );
+      const intel = await intelRes.json();
+      if (intelRes.ok && intel?.insights) {
+        const fastest = String(intel.insights.fastest || "").toUpperCase();
+        const cheapest = String(intel.insights.cheapest || "").toUpperCase();
+        intelligenceLine =
+          fastest && cheapest
+            ? `Fastest: ${fastest} | Cheapest: ${cheapest}`
+            : "";
+      }
+    } catch {
+      intelligenceLine = "";
+    }
 
     if (summaryBox) {
       summaryBox.innerHTML = `
@@ -1040,6 +1087,7 @@ const loadRoute = async (from, to, mode) => {
         <p><strong>From:</strong> ${route.from}</p>
         <p><strong>To:</strong> ${route.to}</p>
         ${durationLine ? `<p>${durationLine}</p>` : ""}
+        ${intelligenceLine ? `<p><strong>Route intelligence:</strong> ${intelligenceLine}</p>` : ""}
         <p>${route.summary || "Curated stops and stays for your journey."}</p>
       `;
     }
@@ -1071,6 +1119,24 @@ const loadRoute = async (from, to, mode) => {
       setBusOpen(false);
       setCabOpen(false);
     }
+    fetch(`${apiBase}/api/enhancements/notifications/route-alerts`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        to: route.to || to,
+        mode: displayMode,
+        duration: headlineDuration,
+        weather: currentWeatherSummary || "mixed conditions",
+      }),
+    })
+      .then((res) => res.json())
+      .then((payload) => {
+        if (safetyStatus && Array.isArray(payload?.alerts) && payload.alerts.length) {
+          safetyStatus.textContent = payload.alerts[0];
+        }
+      })
+      .catch(() => {});
+    notifyTripReady("Route Ready", `${from} to ${to} is ready with ${displayMode} insights.`);
     
   } catch (err) {
     currentRoute = null;
@@ -1786,6 +1852,7 @@ const fromParam = (params.get("from") || "").trim();
 const toParam = (params.get("to") || "").trim();
 const modeParam = (params.get("mode") || "").trim();
 const stateParam = (params.get("state") || "").trim();
+const itineraryParam = (params.get("itinerary") || "").trim();
 
 if (toParam) {
   currentCity = toParam;
@@ -1805,6 +1872,22 @@ syncCityInputs();
 
 if (!requireLogin()) {
   // redirect handled
+} else if (itineraryParam) {
+  fetch(`${apiBase}/api/enhancements/bookings/itinerary/${encodeURIComponent(itineraryParam)}`)
+    .then((res) => res.json().then((data) => ({ ok: res.ok, data })))
+    .then(({ ok, data }) => {
+      if (!ok || !data?.itinerary) return;
+      currentShareCode = itineraryParam;
+      localStorage.setItem("lastItineraryShareCode", itineraryParam);
+      const itinerary = data.itinerary;
+      loadRoute(
+        String(itinerary.from || fromParam || "").trim(),
+        String(itinerary.to || toParam || "").trim(),
+        String(itinerary.mode || modeParam || currentMode).trim()
+      );
+      setItineraryMessage("Loaded shared itinerary.");
+    })
+    .catch(() => {});
 } else if (fromParam && toParam) {
   loadRoute(fromParam, toParam, modeParam || currentMode);
 }
@@ -1843,6 +1926,64 @@ if (shareBtn) {
       shareBtn.textContent = "Share this trip";
       setActiveAction(null);
     }, 1400);
+  });
+}
+
+if (saveItineraryBtn) {
+  saveItineraryBtn.addEventListener("click", async () => {
+    setActiveAction(saveItineraryBtn);
+    if (!currentFromCity || !currentCity) {
+      setItineraryMessage("Search a route first.", true);
+      setActiveAction(null);
+      return;
+    }
+    const userEmail = String(localStorage.getItem("userEmail") || "").trim().toLowerCase();
+    try {
+      const res = await fetch(`${apiBase}/api/enhancements/bookings/itinerary`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userEmail,
+          from: currentFromCity,
+          to: currentCity,
+          mode: currentRouteMode || currentMode,
+          days: 3,
+          budget: "mid-range",
+          notes: `Generated from route search on ${new Date().toLocaleString()}`,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Unable to save itinerary");
+      currentShareCode = String(data?.shareCode || "").trim();
+      if (currentShareCode) {
+        localStorage.setItem("lastItineraryShareCode", currentShareCode);
+      }
+      const shareText = data?.shareUrl ? ` Share: ${data.shareUrl}` : "";
+      setItineraryMessage(`Itinerary saved.${shareText}`);
+    } catch (error) {
+      setItineraryMessage(error.message || "Unable to save itinerary", true);
+    } finally {
+      setTimeout(() => setActiveAction(null), 400);
+    }
+  });
+}
+
+if (exportItineraryBtn) {
+  exportItineraryBtn.addEventListener("click", () => {
+    setActiveAction(exportItineraryBtn);
+    const code = currentShareCode || localStorage.getItem("lastItineraryShareCode") || "";
+    if (!code) {
+      setItineraryMessage("Save itinerary first, then export.");
+      setTimeout(() => setActiveAction(null), 500);
+      return;
+    }
+    window.open(
+      `${apiBase}/api/enhancements/bookings/itinerary/${encodeURIComponent(code)}/export`,
+      "_blank",
+      "noopener,noreferrer"
+    );
+    setItineraryMessage("Export started.");
+    setTimeout(() => setActiveAction(null), 500);
   });
 }
 
