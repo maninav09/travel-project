@@ -1,3 +1,4 @@
+/* Purpose: powers the route results page, saved trips, reviews, and AI itinerary tools. */
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("/sw.js").catch(() => {});

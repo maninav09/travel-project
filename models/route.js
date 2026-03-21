@@ -1,3 +1,4 @@
+// Purpose: stores saved trip summaries, timings, and curated travel details.
 const mongoose = require("mongoose");
 
 const detailSchema = new mongoose.Schema(
@@ -33,4 +34,5 @@ const routeSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
 module.exports = mongoose.model("Route", routeSchema);

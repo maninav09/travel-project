@@ -1,3 +1,4 @@
+// Purpose: MongoDB model for train route options and seeded train data.
 const mongoose = require("mongoose");
 
 const trainSchema = new mongoose.Schema(

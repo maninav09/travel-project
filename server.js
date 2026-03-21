@@ -1,3 +1,4 @@
+// Purpose: bootstraps the Express app, mounts routes, and serves the frontend.
 require("dotenv").config();
 const express = require("express");
 const path = require("path");
@@ -6,13 +7,13 @@ const mongoose = require("mongoose");
 const cors = require("cors");
 
 /* ROUTES */
-const routeApi = require("./models/routes/routeAPI");
-const authApi = require("./models/routes/authAPI");
-const exploreRoutes = require("./models/routes/exploreRoute");
-const trainApi = require("./models/routes/trainAPI");
-const busApi = require("./models/routes/busAPI");
-const cabApi = require("./models/routes/cabAPI");
-const enhancementsApi = require("./models/routes/enhancementsAPI");
+const routeApi = require("./routes/routeAPI");
+const authApi = require("./routes/authAPI");
+const exploreRoutes = require("./routes/exploreRoute");
+const trainApi = require("./routes/trainAPI");
+const busApi = require("./routes/busAPI");
+const cabApi = require("./routes/cabAPI");
+const enhancementsApi = require("./routes/enhancementsAPI");
 
 const app = express();
 console.log("Server file:", __filename);

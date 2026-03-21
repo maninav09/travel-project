@@ -1,3 +1,4 @@
+// Purpose: fetches explore-page content such as hotels, attractions, and food stops.
 const axios = require("axios");
 
 const GOOGLE_KEY = (process.env.GOOGLE_MAPS_API_KEY || "").trim();

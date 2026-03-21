@@ -1,7 +1,8 @@
+// Purpose: handles user preferences and shareable itinerary enhancements.
 const express = require("express");
 const crypto = require("crypto");
-const User = require("./user");
-const Itinerary = require("./itinerary");
+const User = require("../models/user");
+const Itinerary = require("../models/itinerary");
 
 const router = express.Router();
 const USE_MONGO = process.env.USE_MONGO === "true";

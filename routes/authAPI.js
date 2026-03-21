@@ -1,11 +1,12 @@
+// Purpose: handles signup, signin, password reset, and profile image uploads.
 const express = require("express");
 const bcrypt = require("bcryptjs");
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 
-const User = require("./user");
-const Route = require("./route");
+const User = require("../models/user");
+const Route = require("../models/route");
 
 const router = express.Router();
 const signinAttempts = new Map();

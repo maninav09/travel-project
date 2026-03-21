@@ -1,3 +1,4 @@
+/* Purpose: controls the login/signup modal flow and profile image preview behavior. */
 const modal = document.querySelector('[data-modal="auth"]');
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {

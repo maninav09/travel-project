@@ -1,3 +1,4 @@
+// Purpose: verifies frontend home-page helper logic with fast unit tests.
 const test = require("node:test");
 const assert = require("node:assert/strict");
 

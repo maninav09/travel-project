@@ -1,3 +1,4 @@
+// Purpose: verifies analytics endpoints and guards against tracking regressions.
 const test = require("node:test");
 const assert = require("node:assert/strict");
 

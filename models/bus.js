@@ -1,3 +1,4 @@
+// Purpose: MongoDB model for cached or seeded bus route options.
 const mongoose = require("mongoose");
 
 const busSchema = new mongoose.Schema(

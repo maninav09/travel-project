@@ -1,3 +1,4 @@
+/* Purpose: caches core frontend files so the site loads more reliably after first visit. */
 const CACHE_NAME = "route-connect-v3";
 const OFFLINE_ASSETS = [
   "/",

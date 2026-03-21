@@ -1,5 +1,6 @@
+// Purpose: returns cab options from live providers when available, otherwise generated fallback data.
 const express = require("express");
-const Cab = require("../cab");
+const Cab = require("../models/cab");
 
 const providers = ["Uber", "Ola", "Rapido Cabs", "CityCab", "QuickRide", "Mega Taxi"];
 const vehicleTypes = ["Mini", "Sedan", "SUV", "Prime Sedan", "Prime SUV"];

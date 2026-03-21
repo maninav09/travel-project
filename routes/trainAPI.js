@@ -1,5 +1,6 @@
+// Purpose: returns train options from live providers when available, otherwise local fallback data.
 const express = require("express");
-const Train = require("../train");
+const Train = require("../models/train");
 
 const trainNames = [
   "Rajdhani Express",

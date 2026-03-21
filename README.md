@@ -2,6 +2,14 @@
 
 A full-stack travel planning app to compare train/bus/cab options, view nearby places, and build trip plans.
 
+This repository is now organized by responsibility so it is easier to scan:
+- `routes/` contains Express routers
+- `controllers/` contains request handlers
+- `services/` contains shared backend logic
+- `models/` contains Mongoose schemas only
+- `public/` contains the static frontend
+- each main source folder includes a short `README.md` that explains the files inside
+
 ## Features
 - Route planning by `from` and `to` city
 - Mode comparison: train, bus, cab
@@ -17,10 +25,12 @@ A full-stack travel planning app to compare train/bus/cab options, view nearby p
 - Plain HTML/CSS/JS frontend
 
 ## Project Structure
-- `server.js` - main app wiring and API routes
-- `models/` - schemas and route handlers
-- `controller/` - explore data controller
-- `public/` - frontend pages and assets
+- `server.js` - main app wiring and API mounts
+- `routes/` - Express route modules
+- `controllers/` - request handlers for grouped features
+- `services/` - shared backend helper logic
+- `models/` - Mongoose schemas
+- `public/` - frontend pages, scripts, styles, and assets
 - `scripts/` - data seeding scripts
 - `tests/` - automated tests
 

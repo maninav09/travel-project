@@ -1,5 +1,6 @@
+// Purpose: returns bus options from live providers when available, otherwise seeded fallback data.
 const express = require("express");
-const Bus = require("../bus");
+const Bus = require("../models/bus");
 
 const operators = [
   "RedBus Connect",

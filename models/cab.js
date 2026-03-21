@@ -1,3 +1,4 @@
+// Purpose: MongoDB model for cached or seeded cab route options.
 const mongoose = require("mongoose");
 
 const cabSchema = new mongoose.Schema(

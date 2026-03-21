@@ -1,3 +1,4 @@
+/* Purpose: powers interactions and API calls for the landing page experience. */
 const onReady = (fn) => {
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", fn);

@@ -1,3 +1,4 @@
+// Purpose: stores shareable itinerary bookings created from the route page.
 const mongoose = require("mongoose");
 
 const itinerarySchema = new mongoose.Schema(

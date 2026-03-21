@@ -1,3 +1,4 @@
+// Purpose: stores user account details and saved travel preferences.
 const mongoose = require("mongoose");
 
 const userSchema = new mongoose.Schema(

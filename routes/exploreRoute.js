@@ -1,6 +1,7 @@
+// Purpose: exposes explore-related endpoints for hotels, famous places, and food stops.
 const express = require("express");
 const router = express.Router();
-const controller = require("../../controller/controller"); 
+const controller = require("../controllers/exploreController");
 
 router.get("/hotels", controller.getHotels);
 router.get("/famous", controller.getFamousPlaces);

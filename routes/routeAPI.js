@@ -1,14 +1,14 @@
 
-
+// Purpose: handles route planning, durations, saved routes, and AI-generated trip details.
 const express = require("express");
 const axios = require("axios");
-const Route = require("./route");
+const Route = require("../models/route");
 
 const {
   ensureRoutes,
   isIncomplete,
   normalizeMode,
-} = require("./places/service");
+} = require("../services/routePlacesService");
 
 const router = express.Router();
 

@@ -1,3 +1,4 @@
+/* Purpose: applies the saved site theme and wires the theme toggle buttons. */
 const themeKey = "themePreference";
 
 const applyTheme = (theme) => {

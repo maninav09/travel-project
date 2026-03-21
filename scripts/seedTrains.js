@@ -1,3 +1,4 @@
+// Purpose: seeds train records so the app has fallback data without a live provider.
 require("dotenv").config();
 const mongoose = require("mongoose");
 const Train = require("../models/train");

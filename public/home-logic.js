@@ -1,3 +1,4 @@
+/* Purpose: reusable homepage helper functions that are also covered by unit tests. */
 (function (root, factory) {
   if (typeof module === "object" && module.exports) {
     module.exports = factory();

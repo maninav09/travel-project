@@ -1,3 +1,4 @@
+// Purpose: verifies the health endpoint so deployment wiring stays reliable.
 const test = require("node:test");
 const assert = require("node:assert/strict");
 

@@ -1,4 +1,5 @@
-const Route = require("../route");
+// Purpose: shared helpers that enrich route results with details, images, and AI fallbacks.
+const Route = require("../models/route");
 
 const GOOGLE_KEY = process.env.GOOGLE_MAPS_API_KEY;
 const OPENAI_KEY = process.env.OPENAI_API_KEY;
