@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Routes-connect Demo</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #09111f;
+        --panel: rgba(9, 17, 31, 0.82);
+        --panel-strong: rgba(15, 23, 42, 0.92);
+        --border: rgba(255, 255, 255, 0.1);
+        --text: #f8fafc;
+        --muted: #cbd5e1;
+        --accent: #f97316;
+        --accent-soft: rgba(249, 115, 22, 0.18);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: "Segoe UI", system-ui, sans-serif;
+        color: var(--text);
+        background:
+          radial-gradient(circle at top left, rgba(249, 115, 22, 0.2), transparent 28%),
+          radial-gradient(circle at top right, rgba(59, 130, 246, 0.16), transparent 26%),
+          linear-gradient(180deg, #030712 0%, #09111f 45%, #020617 100%);
+      }
+
+      .page {
+        width: min(1240px, calc(100% - 40px));
+        margin: 28px auto 48px;
+      }
+
+      .hero {
+        position: relative;
+        overflow: hidden;
+        border: 1px solid var(--border);
+        border-radius: 30px;
+        min-height: 420px;
+        display: grid;
+        align-items: end;
+        padding: 36px;
+        background:
+          linear-gradient(180deg, rgba(2, 6, 23, 0.12), rgba(2, 6, 23, 0.82)),
+          url("screenshots/home.png") center/cover no-repeat;
+        box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
+      }
+
+      .hero::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+          linear-gradient(90deg, rgba(2, 6, 23, 0.92) 0%, rgba(2, 6, 23, 0.35) 58%, rgba(2, 6, 23, 0.82) 100%);
+      }
+
+      .hero-content {
+        position: relative;
+        z-index: 1;
+        max-width: 640px;
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        margin: 0 0 16px;
+        padding: 8px 14px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        color: #fed7aa;
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .hero h1 {
+        margin: 0 0 14px;
+        font-size: clamp(34px, 5vw, 58px);
+        line-height: 1.02;
+      }
+
+      .hero p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 17px;
+        line-height: 1.7;
+        max-width: 600px;
+      }
+
+      .hero-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+        margin-top: 26px;
+      }
+
+      .button {
+        appearance: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 46px;
+        padding: 0 18px;
+        border-radius: 999px;
+        font-weight: 700;
+        text-decoration: none;
+        transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+      }
+
+      .button:hover {
+        transform: translateY(-1px);
+      }
+
+      .button-primary {
+        background: linear-gradient(135deg, #f97316, #fb923c);
+        color: #111827;
+        border: none;
+      }
+
+      .button-secondary {
+        color: var(--text);
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+      }
+
+      .meta-strip {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 14px;
+        margin-top: 22px;
+      }
+
+      .meta-card {
+        padding: 16px 18px;
+        border-radius: 20px;
+        background: var(--panel);
+        border: 1px solid var(--border);
+        backdrop-filter: blur(12px);
+      }
+
+      .meta-label {
+        display: block;
+        color: #94a3b8;
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        margin-bottom: 8px;
+      }
+
+      .meta-value {
+        font-size: 18px;
+        font-weight: 700;
+      }
+
+      .section {
+        margin-top: 28px;
+        padding: 28px;
+        border-radius: 28px;
+        background: var(--panel-strong);
+        border: 1px solid var(--border);
+        box-shadow: 0 18px 54px rgba(0, 0, 0, 0.28);
+      }
+
+      .section-header {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 20px;
+      }
+
+      .section-header h2 {
+        margin: 0 0 8px;
+        font-size: clamp(24px, 3vw, 32px);
+      }
+
+      .section-header p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.6;
+      }
+
+      .featured {
+        display: grid;
+        grid-template-columns: 1.6fr 0.8fr;
+        gap: 22px;
+        align-items: start;
+      }
+
+      .video-card {
+        padding: 16px;
+        border-radius: 24px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--border);
+      }
+
+      video {
+        display: block;
+        width: 100%;
+        border-radius: 18px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: #000;
+      }
+
+      .sidebar {
+        display: grid;
+        gap: 16px;
+      }
+
+      .info-card {
+        padding: 18px;
+        border-radius: 22px;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid var(--border);
+      }
+
+      .info-card h3 {
+        margin: 0 0 10px;
+        font-size: 18px;
+      }
+
+      .info-card p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.65;
+        font-size: 14px;
+      }
+
+      .tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 14px;
+      }
+
+      .tag {
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: var(--accent-soft);
+        border: 1px solid rgba(249, 115, 22, 0.24);
+        color: #ffedd5;
+        font-size: 13px;
+        font-weight: 600;
+      }
+
+      .gallery {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+      }
+
+      .readme-showcase {
+        display: grid;
+        gap: 22px;
+      }
+
+      .readme-hero {
+        position: relative;
+        overflow: hidden;
+        padding: 34px;
+        border-radius: 30px;
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        background:
+          radial-gradient(circle at top right, rgba(249, 115, 22, 0.14), transparent 26%),
+          linear-gradient(180deg, #ffffff 0%, #fff9f5 100%);
+        box-shadow: 0 26px 70px rgba(15, 23, 42, 0.12);
+      }
+
+      .readme-hero::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+          linear-gradient(135deg, rgba(255, 255, 255, 0.8), transparent 35%),
+          radial-gradient(circle at bottom left, rgba(59, 130, 246, 0.08), transparent 24%);
+        pointer-events: none;
+      }
+
+      .readme-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: rgba(249, 115, 22, 0.1);
+        border: 1px solid rgba(249, 115, 22, 0.16);
+        color: #c2410c;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .readme-hero h3 {
+        position: relative;
+        margin: 18px 0 12px;
+        font-size: clamp(34px, 4vw, 52px);
+        line-height: 1.02;
+        color: #0f172a;
+      }
+
+      .readme-hero p {
+        position: relative;
+        margin: 0;
+        color: #475569;
+        line-height: 1.8;
+        font-size: 18px;
+        max-width: 620px;
+      }
+
+      .readme-actions {
+        position: relative;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 22px;
+      }
+
+      .button-light {
+        color: #0f172a;
+        background: rgba(15, 23, 42, 0.06);
+        border: 1px solid rgba(15, 23, 42, 0.1);
+      }
+
+      .readme-stage {
+        border-radius: 34px;
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+        box-shadow: 0 28px 80px rgba(15, 23, 42, 0.16);
+        overflow: hidden;
+      }
+
+      .deck-topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+        padding: 18px 22px;
+        border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+        background: rgba(248, 250, 252, 0.9);
+      }
+
+      .deck-title {
+        color: #0f172a;
+        font-size: 18px;
+        font-weight: 800;
+      }
+
+      .deck-meta {
+        color: #64748b;
+        font-size: 14px;
+      }
+
+      .deck-controls {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .deck-button {
+        appearance: none;
+        border: 1px solid rgba(15, 23, 42, 0.1);
+        background: #ffffff;
+        color: #0f172a;
+        border-radius: 999px;
+        min-height: 42px;
+        padding: 0 16px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .deck-button:hover {
+        background: #f8fafc;
+      }
+
+      .deck-button:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+
+      .deck-viewport {
+        position: relative;
+        min-height: 620px;
+      }
+
+      .slide {
+        display: none;
+        min-height: 620px;
+        padding: 40px;
+        color: #0f172a;
+        background:
+          radial-gradient(circle at top right, rgba(249, 115, 22, 0.08), transparent 24%),
+          linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+      }
+
+      .slide.is-active {
+        display: grid;
+        align-content: start;
+        gap: 22px;
+      }
+
+      .slide-kicker {
+        display: inline-flex;
+        align-items: center;
+        width: fit-content;
+        padding: 9px 14px;
+        border-radius: 999px;
+        background: rgba(249, 115, 22, 0.12);
+        color: #c2410c;
+        font-size: 12px;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        font-weight: 800;
+      }
+
+      .slide h3 {
+        margin: 0;
+        font-size: clamp(42px, 6vw, 68px);
+        line-height: 0.98;
+        letter-spacing: -0.03em;
+        color: #0f172a;
+      }
+
+      .slide h3 .highlight {
+        color: #ea580c;
+      }
+
+      .slide-lead {
+        margin: 0;
+        max-width: 980px;
+        color: #475569;
+        line-height: 1.75;
+        font-size: 21px;
+        font-weight: 500;
+      }
+
+      .slide-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+      }
+
+      .slide-card {
+        padding: 24px;
+        border-radius: 24px;
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        background: rgba(255, 255, 255, 0.9);
+        box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
+      }
+
+      .slide-card h4 {
+        margin: 0 0 10px;
+        font-size: 24px;
+        line-height: 1.2;
+        color: #0f172a;
+      }
+
+      .slide-card p {
+        margin: 0;
+        color: #475569;
+        font-size: 17px;
+        line-height: 1.7;
+      }
+
+      .slide-list {
+        margin: 0;
+        padding-left: 22px;
+        color: #334155;
+        font-size: 19px;
+        line-height: 1.9;
+      }
+
+      .slide-list strong {
+        color: #0f172a;
+      }
+
+      .slide-wide {
+        padding: 28px;
+        border-radius: 28px;
+        background: linear-gradient(135deg, rgba(249, 115, 22, 0.08), rgba(59, 130, 246, 0.06));
+        border: 1px solid rgba(15, 23, 42, 0.08);
+      }
+
+      .slide-wide p {
+        margin: 0;
+        color: #334155;
+        font-size: 20px;
+        line-height: 1.8;
+      }
+
+      .shot {
+        overflow: hidden;
+        border-radius: 24px;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid var(--border);
+      }
+
+      .shot img {
+        display: block;
+        width: 100%;
+        aspect-ratio: 16 / 10;
+        object-fit: cover;
+      }
+
+      .shot-copy {
+        padding: 16px 18px 18px;
+      }
+
+      .shot-copy h3 {
+        margin: 0 0 8px;
+        font-size: 18px;
+      }
+
+      .shot-copy p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.6;
+        font-size: 14px;
+      }
+
+      .footer-note {
+        margin-top: 16px;
+        color: #94a3b8;
+        font-size: 13px;
+        line-height: 1.7;
+      }
+
+      @media (max-width: 980px) {
+        .meta-strip,
+        .featured,
+        .gallery,
+        .slide-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .page {
+          width: min(100% - 24px, 1240px);
+        }
+
+        .hero,
+        .section {
+          padding: 22px;
+        }
+
+        .slide {
+          min-height: auto;
+          padding: 26px;
+        }
+
+        .deck-topbar {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <section class="hero">
+        <div class="hero-content">
+          <p class="eyebrow">Featured Demo Experience</p>
+          <h1>Routes-connect: a movie-style showcase of the travel planner</h1>
+          <p>
+            Watch the guided walkthrough, explore the key screens below, and use this page as a
+            polished browser presentation of the project.
+          </p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="#watch-now">Watch Demo</a>
+            <a class="button button-secondary" href="demo/routes-connect-demo.webm" target="_blank" rel="noreferrer">
+              Open Raw Video
+            </a>
+            <a class="button button-secondary" href="#readme-deck">
+              Open README Slides
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <section class="meta-strip">
+        <article class="meta-card">
+          <span class="meta-label">Genre</span>
+          <span class="meta-value">Travel Planning Platform</span>
+        </article>
+        <article class="meta-card">
+          <span class="meta-label">Format</span>
+          <span class="meta-value">Guided Product Demo</span>
+        </article>
+        <article class="meta-card">
+          <span class="meta-label">Highlights</span>
+          <span class="meta-value">Route, AI, Budget, Safety</span>
+        </article>
+        <article class="meta-card">
+          <span class="meta-label">Viewer</span>
+          <span class="meta-value">Opera / Modern Browser</span>
+        </article>
+      </section>
+
+      <section class="section" id="watch-now">
+        <div class="section-header">
+          <div>
+            <h2>Now Playing</h2>
+            <p>
+              A cinematic walkthrough of the home page, route workflow, planner tools, supporting
+              pages, and project setup disclaimer.
+            </p>
+          </div>
+        </div>
+
+        <div class="featured">
+          <div class="video-card">
+            <video controls preload="metadata" poster="screenshots/home.png">
+              <source src="demo/routes-connect-demo.webm" type="video/webm" />
+              Your browser does not support the video tag.
+            </video>
+          </div>
+
+          <aside class="sidebar">
+            <article class="info-card">
+              <h3>What this demo covers</h3>
+              <p>
+                The video shows the start screen, route search flow, detailed planner, mode
+                switching, AI plan area, budget splitter, safety dashboard, and supporting pages.
+              </p>
+              <div class="tags">
+                <span class="tag">Home Page</span>
+                <span class="tag">Route Planner</span>
+                <span class="tag">AI Tools</span>
+                <span class="tag">Travel Modes</span>
+                <span class="tag">Safety</span>
+              </div>
+            </article>
+
+            <article class="info-card">
+              <h3>Playback tip</h3>
+              <p>
+                If Opera does not start playback automatically, press play once. This page gives
+                the demo a clean browser UI without changing the application itself.
+              </p>
+            </article>
+
+            <article class="info-card">
+              <h3>Project files</h3>
+              <p>
+                This player uses the media files stored in the <code>docs/</code> folder, while
+                this page itself stays at the project root for easy browser access.
+              </p>
+            </article>
+          </aside>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-header">
+          <div>
+            <h2>Scene Gallery</h2>
+            <p>
+              These screenshots act like movie stills, giving a quick visual tour of the main
+              interfaces shown in the video.
+            </p>
+          </div>
+        </div>
+
+        <div class="gallery">
+          <article class="shot">
+            <img src="screenshots/home.png" alt="Routes-connect home page" />
+            <div class="shot-copy">
+              <h3>Home Page</h3>
+              <p>
+                The entry screen introduces the product, highlights destinations, and starts the
+                route planning journey with a simple search form.
+              </p>
+            </div>
+          </article>
+
+          <article class="shot">
+            <img src="screenshots/route-planner.png" alt="Routes-connect route planner page" />
+            <div class="shot-copy">
+              <h3>Route Planner</h3>
+              <p>
+                The planner combines route summary, weather, travel mode comparison, destination
+                details, and action tools in one dashboard.
+              </p>
+            </div>
+          </article>
+
+          <article class="shot">
+            <img src="screenshots/login.png" alt="Routes-connect login page" />
+            <div class="shot-copy">
+              <h3>Login Experience</h3>
+              <p>
+                The authentication page supports user entry, account creation, and profile-based
+                personalization for the travel workflow.
+              </p>
+            </div>
+          </article>
+
+          <article class="shot">
+            <img src="screenshots/services.png" alt="Routes-connect services page" />
+            <div class="shot-copy">
+              <h3>Services Overview</h3>
+              <p>
+                Supporting pages explain what the platform offers and help present the project more
+                clearly during demos or submissions.
+              </p>
+            </div>
+          </article>
+        </div>
+
+        <p class="footer-note">
+          Local presentation page only. Open this file directly in Opera or another modern browser
+          to watch the demo with the built-in controls.
+        </p>
+      </section>
+
+      <section class="section">
+        <div class="section-header">
+          <div>
+            <h2>Documentation Experience</h2>
+            <p>
+              The README now appears as a proper presentation deck inside this page, with a white
+              background, larger typography, highlighted headings, and slide navigation.
+            </p>
+          </div>
+        </div>
+
+        <div class="readme-showcase" id="readme-deck">
+          <article class="readme-hero">
+            <span class="readme-badge">README Spotlight</span>
+            <h3>Turn documentation into a <span class="highlight">presentation</span></h3>
+            <p>
+              Instead of opening a plain markdown file, this section transforms your README content
+              into a premium slide experience that feels cleaner, brighter, and much more
+              professional during demos.
+            </p>
+            <div class="readme-actions">
+              <a class="button button-primary" href="#deck-stage">
+                Launch Slides
+              </a>
+              <a class="button button-light" href="#watch-now">
+                Back to Demo
+              </a>
+            </div>
+          </article>
+
+          <div class="readme-stage" id="deck-stage">
+            <div class="deck-topbar">
+              <div>
+                <div class="deck-title">Routes-connect Documentation Deck</div>
+                <div class="deck-meta">
+                  Slide through the project story, architecture, features, setup, and future scope.
+                </div>
+              </div>
+              <div class="deck-controls">
+                <button class="deck-button" type="button" data-deck-prev>Previous</button>
+                <span class="deck-meta" data-deck-status>Slide 1 of 5</span>
+                <button class="deck-button" type="button" data-deck-next>Next</button>
+              </div>
+            </div>
+
+            <div class="deck-viewport">
+              <section class="slide is-active" data-slide>
+                <span class="slide-kicker">Overview</span>
+                <h3>Smart travel planning for <span class="highlight">city-to-city journeys</span></h3>
+                <p class="slide-lead">
+                  Routes-connect is a full-stack travel planning platform designed to simplify trip
+                  preparation. It brings route comparison, destination discovery, weather updates,
+                  AI assistance, safety tools, and travel support into one experience.
+                </p>
+                <div class="slide-grid">
+                  <article class="slide-card">
+                    <h4>Problem</h4>
+                    <p>
+                      Travel planning usually gets split across many apps and websites, which makes
+                      the process slower, more confusing, and less organized.
+                    </p>
+                  </article>
+                  <article class="slide-card">
+                    <h4>Solution</h4>
+                    <p>
+                      Routes-connect centralizes the most useful planning features into a single
+                      platform so users can move from search to decision more smoothly.
+                    </p>
+                  </article>
+                </div>
+              </section>
+
+              <section class="slide" data-slide>
+                <span class="slide-kicker">Core Features</span>
+                <h3>Features that make the platform <span class="highlight">practical</span></h3>
+                <div class="slide-grid">
+                  <article class="slide-card">
+                    <h4>Travel Planning</h4>
+                    <ul class="slide-list">
+                      <li>Route planning between cities</li>
+                      <li>Train, bus, cab, and flight-style comparison</li>
+                      <li>Route map and weather snapshot</li>
+                    </ul>
+                  </article>
+                  <article class="slide-card">
+                    <h4>Destination Discovery</h4>
+                    <ul class="slide-list">
+                      <li>Hotels, restaurants, food corners, and famous places</li>
+                      <li>Hidden gems and destination discovery</li>
+                      <li>Tourist-place cards with photos</li>
+                    </ul>
+                  </article>
+                  <article class="slide-card">
+                    <h4>Smart Tools</h4>
+                    <ul class="slide-list">
+                      <li>AI trip planning support</li>
+                      <li>Smart budget splitter</li>
+                      <li>Safety dashboard and shareable trip links</li>
+                    </ul>
+                  </article>
+                  <article class="slide-card">
+                    <h4>User Experience</h4>
+                    <ul class="slide-list">
+                      <li>Login and signup flow</li>
+                      <li>Profile image upload</li>
+                      <li>Previous trip review and history</li>
+                    </ul>
+                  </article>
+                </div>
+              </section>
+
+              <section class="slide" data-slide>
+                <span class="slide-kicker">Technology Stack</span>
+                <h3>A full-stack build with <span class="highlight">real integrations</span></h3>
+                <div class="slide-grid">
+                  <article class="slide-card">
+                    <h4>Frontend</h4>
+                    <p>
+                      HTML5, CSS3, JavaScript, and Progressive Web App support through
+                      <strong>`manifest.webmanifest`</strong> and <strong>`sw.js`</strong>.
+                    </p>
+                  </article>
+                  <article class="slide-card">
+                    <h4>Backend</h4>
+                    <p>
+                      Node.js, Express.js, REST API architecture, Dotenv, Multer, Bcryptjs, and
+                      CORS for a structured server-side application.
+                    </p>
+                  </article>
+                  <article class="slide-card">
+                    <h4>Database</h4>
+                    <p>
+                      MongoDB with Mongoose for schema-based storage when database mode is enabled.
+                    </p>
+                  </article>
+                  <article class="slide-card">
+                    <h4>Third-Party Services</h4>
+                    <p>
+                      OpenAI, Pexels, Geoapify, Google Maps, Open-Meteo, and EmailJS for AI,
+                      location, weather, and communication features.
+                    </p>
+                  </article>
+                </div>
+              </section>
+
+              <section class="slide" data-slide>
+                <span class="slide-kicker">Project Setup</span>
+                <h3>How to run the project <span class="highlight">correctly</span></h3>
+                <div class="slide-wide">
+                  <p>
+                    Install dependencies with <strong>`npm install`</strong>, create the
+                    environment file from <strong>`.env.example`</strong>, add the required API
+                    keys and configuration, and then start the server with
+                    <strong>`npm start`</strong>.
+                  </p>
+                </div>
+                <div class="slide-grid">
+                  <article class="slide-card">
+                    <h4>Important Variables</h4>
+                    <ul class="slide-list">
+                      <li>`PORT`</li>
+                      <li>`USE_MONGO`</li>
+                      <li>`MONGO_URI`</li>
+                      <li>`GOOGLE_MAPS_API_KEY`</li>
+                      <li>`OPENAI_API_KEY`</li>
+                    </ul>
+                  </article>
+                  <article class="slide-card">
+                    <h4>Scripts</h4>
+                    <ul class="slide-list">
+                      <li>`npm start` for the server</li>
+                      <li>`npm test` for automated tests</li>
+                      <li>`npm run seed` and `npm run seed:trains` for train data</li>
+                    </ul>
+                  </article>
+                </div>
+              </section>
+
+              <section class="slide" data-slide>
+                <span class="slide-kicker">Value & Future</span>
+                <h3>Built for today, designed to <span class="highlight">grow further</span></h3>
+                <div class="slide-grid">
+                  <article class="slide-card">
+                    <h4>Current Value</h4>
+                    <ul class="slide-list">
+                      <li>Centralized travel planning</li>
+                      <li>Better decision-making through route comparison</li>
+                      <li>Expandable architecture for future features</li>
+                    </ul>
+                  </article>
+                  <article class="slide-card">
+                    <h4>Future Improvements</h4>
+                    <ul class="slide-list">
+                      <li>Real-time booking integration</li>
+                      <li>Fare and seat availability tracking</li>
+                      <li>Notifications, multilingual support, and deeper personalization</li>
+                    </ul>
+                  </article>
+                </div>
+                <div class="slide-wide">
+                  <p>
+                    Routes-connect works well as both a practical travel utility and a strong
+                    portfolio or academic project because it demonstrates frontend design, backend
+                    APIs, authentication, database integration, and real-world service connections
+                    in one product.
+                  </p>
+                </div>
+              </section>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+    <script>
+      const slides = Array.from(document.querySelectorAll("[data-slide]"));
+      const prevButton = document.querySelector("[data-deck-prev]");
+      const nextButton = document.querySelector("[data-deck-next]");
+      const status = document.querySelector("[data-deck-status]");
+      let currentSlide = 0;
+
+      const renderSlide = () => {
+        slides.forEach((slide, index) => {
+          slide.classList.toggle("is-active", index === currentSlide);
+        });
+        if (status) {
+          status.textContent = `Slide ${currentSlide + 1} of ${slides.length}`;
+        }
+        if (prevButton) prevButton.disabled = currentSlide === 0;
+        if (nextButton) nextButton.disabled = currentSlide === slides.length - 1;
+      };
+
+      if (prevButton) {
+        prevButton.addEventListener("click", () => {
+          if (currentSlide > 0) {
+            currentSlide -= 1;
+            renderSlide();
+          }
+        });
+      }
+
+      if (nextButton) {
+        nextButton.addEventListener("click", () => {
+          if (currentSlide < slides.length - 1) {
+            currentSlide += 1;
+            renderSlide();
+          }
+        });
+      }
+
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "ArrowRight" && currentSlide < slides.length - 1) {
+          currentSlide += 1;
+          renderSlide();
+        }
+        if (event.key === "ArrowLeft" && currentSlide > 0) {
+          currentSlide -= 1;
+          renderSlide();
+        }
+      });
+
+      renderSlide();
+    </script>
+  </body>
+</html>
