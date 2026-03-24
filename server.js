@@ -86,6 +86,29 @@ if (!GEOAPIFY_KEY) console.warn("Missing GEOAPIFY_API_KEY in .env");
 if (!GOOGLE_KEY) console.warn("Missing GOOGLE_MAPS_API_KEY in .env");
 if (!PEXELS_KEY) console.warn("Missing PEXELS_API_KEY in .env");
 
+const integrationHealth = {
+  openai: {
+    enabled: Boolean(OPENAI_KEY),
+    warned: false,
+    lastError: "",
+  },
+  emailjs: {
+    enabled: true,
+    warned: false,
+    lastError: "",
+  },
+};
+
+const disableIntegration = (name, message) => {
+  const target = integrationHealth[name];
+  if (!target) return;
+  target.enabled = false;
+  target.lastError = String(message || "").trim();
+  if (target.warned) return;
+  target.warned = true;
+  console.warn(`${name.toUpperCase()} disabled: ${target.lastError}`);
+};
+
 const geocodeWithGoogle = async (city) => {
   if (!GOOGLE_KEY) return null;
   const params = new URLSearchParams({ address: city, key: GOOGLE_KEY });
@@ -210,6 +233,11 @@ const EMAILJS_ENDPOINT = (
   process.env.EMAILJS_ENDPOINT ||
   "https://api.emailjs.com/api/v1.0/email/send"
 ).trim();
+const EMAILJS_NEWSLETTER_FROM_NAME = (
+  process.env.EMAILJS_NEWSLETTER_FROM_NAME || "Travel-route Connection"
+).trim();
+const EMAILJS_NEWSLETTER_SUBJECT = (process.env.EMAILJS_NEWSLETTER_SUBJECT || "").trim();
+const EMAILJS_NEWSLETTER_MESSAGE = (process.env.EMAILJS_NEWSLETTER_MESSAGE || "").trim();
 
 const maskConfigValue = (value, { head = 4, tail = 2 } = {}) => {
   const text = String(value || "").trim();
@@ -253,6 +281,13 @@ const getSubscriberDisplayName = (email) => {
 };
 
 const sendNewsletterEmail = async ({ email, source }) => {
+  if (!integrationHealth.emailjs.enabled) {
+    return {
+      sent: false,
+      reason: "emailjs_temporarily_disabled",
+      detail: integrationHealth.emailjs.lastError,
+    };
+  }
   if (
     !EMAILJS_SERVICE_ID ||
     !EMAILJS_TEMPLATE_ID ||
@@ -263,12 +298,46 @@ const sendNewsletterEmail = async ({ email, source }) => {
   }
 
   const recipientName = getSubscriberDisplayName(email);
-  const siteName = "Travel-route Connection";
-  const welcomeSubject = `Welcome to ${siteName}, ${recipientName}!`;
+  const siteName = EMAILJS_NEWSLETTER_FROM_NAME || "Travel-route Connection";
+  const welcomeSubject =
+    EMAILJS_NEWSLETTER_SUBJECT || `Welcome to ${siteName}, ${recipientName}!`;
   const welcomeMessage =
-    `Hi ${recipientName}, welcome to ${siteName}. ` +
-    "Plan your trip with us and discover smoother routes, practical travel tips, and better travel choices. " +
-    "Stay connected for exclusive offers, special discounts, and coupon updates delivered to your email.";
+    EMAILJS_NEWSLETTER_MESSAGE ||
+    (`Hi ${recipientName}, welcome to ${siteName}. ` +
+      "Plan your trip with us and discover smoother routes, practical travel tips, and better travel choices. " +
+      "Stay connected for exclusive offers, special discounts, and coupon updates delivered to your email.");
+  const templateParams = {
+    email,
+    to: email,
+    to_email: email,
+    recipient: email,
+    recipient_email: email,
+    user_email: email,
+    email_address: email,
+    userEmail: email,
+    from_email: "no-reply@route-connect.com",
+    reply_to: "no-reply@route-connect.com",
+    to_name: recipientName,
+    from_name: siteName,
+    name: recipientName,
+    user_name: recipientName,
+    subscriber_name: recipientName,
+    recipient_name: recipientName,
+    full_name: recipientName,
+    userName: recipientName,
+    subscriber_email: email,
+    source,
+    app_name: siteName,
+    site_name: siteName,
+    subject: welcomeSubject,
+    title: welcomeSubject,
+    newsletter_subject: welcomeSubject,
+    message: welcomeMessage,
+    text: welcomeMessage,
+    body: welcomeMessage,
+    content: welcomeMessage,
+    newsletter_message: welcomeMessage,
+  };
 
   const response = await fetch(EMAILJS_ENDPOINT, {
     method: "POST",
@@ -278,24 +347,7 @@ const sendNewsletterEmail = async ({ email, source }) => {
       template_id: EMAILJS_TEMPLATE_ID,
       user_id: EMAILJS_PUBLIC_KEY,
       accessToken: EMAILJS_PRIVATE_KEY,
-      template_params: {
-        email,
-        to: email,
-        to_email: email,
-        recipient: email,
-        recipient_email: email,
-        user_email: email,
-        from_email: "no-reply@route-connect.com",
-        reply_to: "no-reply@route-connect.com",
-        to_name: recipientName,
-        from_name: siteName,
-        subscriber_email: email,
-        recipient_name: recipientName,
-        source,
-        app_name: siteName,
-        subject: welcomeSubject,
-        message: welcomeMessage,
-      },
+      template_params: templateParams,
     }),
   });
 
@@ -312,6 +364,16 @@ const sendNewsletterEmail = async ({ email, source }) => {
       /non-browser applications/i.test(String(detail || ""))
     ) {
       return { sent: false, reason: "emailjs_non_browser_blocked" };
+    }
+    if (
+      /invalid grant/i.test(String(detail || "")) ||
+      /reconnect your gmail account/i.test(String(detail || ""))
+    ) {
+      disableIntegration(
+        "emailjs",
+        "Gmail provider authorization is invalid. Reconnect the EmailJS Gmail account."
+      );
+      return { sent: false, reason: "emailjs_provider_reconnect_required" };
     }
     throw new Error(
       `EmailJS send failed (${response.status})${detail ? `: ${detail}` : ""}`
@@ -413,6 +475,8 @@ const defaultDestinationSuggestions = () => [
     mode: "Train",
     badges: ["Traditional", "Heritage"],
     wikipediaQuery: "Jaipur",
+    pexelsQuery: "Jaipur forts india",
+    touristPlaces: ["Amber Fort", "City Palace", "Hawa Mahal"],
   },
   {
     city: "Varanasi",
@@ -421,6 +485,8 @@ const defaultDestinationSuggestions = () => [
     mode: "Train",
     badges: ["Religious Place", "Spiritual"],
     wikipediaQuery: "Varanasi",
+    pexelsQuery: "Varanasi ghats india",
+    touristPlaces: ["Dashashwamedh Ghat", "Kashi Vishwanath Temple", "Assi Ghat"],
   },
   {
     city: "Agra",
@@ -429,6 +495,8 @@ const defaultDestinationSuggestions = () => [
     mode: "Cab",
     badges: ["Indian Tourist", "Monument"],
     wikipediaQuery: "Agra",
+    pexelsQuery: "Agra Taj Mahal india",
+    touristPlaces: ["Taj Mahal", "Agra Fort", "Mehtab Bagh"],
   },
   {
     city: "Mumbai",
@@ -437,6 +505,8 @@ const defaultDestinationSuggestions = () => [
     mode: "Bus",
     badges: ["Famous City", "Urban"],
     wikipediaQuery: "Mumbai",
+    pexelsQuery: "Mumbai skyline india",
+    touristPlaces: ["Gateway of India", "Marine Drive", "Colaba Causeway"],
   },
   {
     city: "Udaipur",
@@ -445,6 +515,8 @@ const defaultDestinationSuggestions = () => [
     mode: "Train",
     badges: ["Heritage", "Romantic"],
     wikipediaQuery: "Udaipur",
+    pexelsQuery: "Udaipur lake palace india",
+    touristPlaces: ["City Palace", "Lake Pichola", "Sajjangarh Fort"],
   },
   {
     city: "Mysuru",
@@ -453,6 +525,8 @@ const defaultDestinationSuggestions = () => [
     mode: "Bus",
     badges: ["Culture", "Palace"],
     wikipediaQuery: "Mysore",
+    pexelsQuery: "Mysore Palace india",
+    touristPlaces: ["Mysore Palace", "Chamundi Hills", "Brindavan Gardens"],
   },
   {
     city: "Amritsar",
@@ -461,6 +535,8 @@ const defaultDestinationSuggestions = () => [
     mode: "Train",
     badges: ["Religious Place", "Food"],
     wikipediaQuery: "Amritsar",
+    pexelsQuery: "Amritsar golden temple india",
+    touristPlaces: ["Golden Temple", "Jallianwala Bagh", "Wagah Border"],
   },
   {
     city: "Kochi",
@@ -469,6 +545,8 @@ const defaultDestinationSuggestions = () => [
     mode: "Cab",
     badges: ["Famous City", "Coastal"],
     wikipediaQuery: "Kochi",
+    pexelsQuery: "Kochi Kerala waterfront",
+    touristPlaces: ["Fort Kochi", "Chinese Fishing Nets", "Mattancherry Palace"],
   },
   {
     city: "Rishikesh",
@@ -477,6 +555,8 @@ const defaultDestinationSuggestions = () => [
     mode: "Bus",
     badges: ["Religious Place", "Nature"],
     wikipediaQuery: "Rishikesh",
+    pexelsQuery: "Rishikesh Ganga river india",
+    touristPlaces: ["Laxman Jhula", "Triveni Ghat", "Parmarth Niketan"],
   },
   {
     city: "Goa",
@@ -485,6 +565,8 @@ const defaultDestinationSuggestions = () => [
     mode: "Cab",
     badges: ["Indian Tourist", "Coastal"],
     wikipediaQuery: "Goa",
+    pexelsQuery: "Goa beach india",
+    touristPlaces: ["Baga Beach", "Fontainhas", "Basilica of Bom Jesus"],
   },
   {
     city: "Shimla",
@@ -493,6 +575,8 @@ const defaultDestinationSuggestions = () => [
     mode: "Bus",
     badges: ["Famous City", "Hill Station"],
     wikipediaQuery: "Shimla",
+    pexelsQuery: "Shimla hills india",
+    touristPlaces: ["Mall Road", "Jakhoo Temple", "The Ridge"],
   },
   {
     city: "Jodhpur",
@@ -501,6 +585,8 @@ const defaultDestinationSuggestions = () => [
     mode: "Train",
     badges: ["Traditional", "Heritage"],
     wikipediaQuery: "Jodhpur",
+    pexelsQuery: "Jodhpur blue city india",
+    touristPlaces: ["Mehrangarh Fort", "Clock Tower Market", "Jaswant Thada"],
   },
 ];
 
@@ -514,6 +600,9 @@ const normalizeSuggestionItem = (item) => {
   const badges = Array.isArray(item?.badges)
     ? item.badges.map((b) => String(b || "").trim()).filter(Boolean).slice(0, 2)
     : [];
+  const touristPlaces = Array.isArray(item?.touristPlaces)
+    ? item.touristPlaces.map((place) => String(place || "").trim()).filter(Boolean).slice(0, 3)
+    : [];
   return {
     city,
     state: state || "India",
@@ -521,6 +610,10 @@ const normalizeSuggestionItem = (item) => {
     mode,
     badges: badges.length ? badges : ["Popular", "Travel"],
     wikipediaQuery: String(item?.wikipediaQuery || city).trim(),
+    pexelsQuery: String(item?.pexelsQuery || `${city} ${state} tourism`).trim(),
+    touristPlaces: touristPlaces.length
+      ? touristPlaces
+      : [`${city} Old Town`, `${city} Main Landmark`, `${city} Local Market`],
   };
 };
 
@@ -585,11 +678,85 @@ const fetchWikipediaImageForQuery = async (query) => {
   }
 };
 
+const fetchPexelsPhoto = async ({ city = "", query = "" } = {}) => {
+  const searchBase = String(city || query || "").trim();
+  if (!searchBase || !PEXELS_KEY) return "";
+
+  const cacheKey = searchBase.toLowerCase();
+  const cached = getPexelsCache(cacheKey);
+  if (cached?.image) return cached.image;
+
+  const parts = searchBase.split(/\s+/).filter(Boolean);
+  const shortQuery = parts.slice(0, 2).join(" ");
+  const cityLc = String(city || "").toLowerCase();
+  const candidates = city
+    ? [
+        query,
+        `${city} landmark india`,
+        `${city} tourism india`,
+        `${city} skyline india`,
+        `${city} india`,
+      ]
+    : [query, `${query} tourism`, `${query} india`, shortQuery];
+
+  const scorePhoto = (photo) => {
+    const alt = String(photo?.alt || "").toLowerCase();
+    let score = 0;
+    if (cityLc && alt.includes(cityLc)) score += 10;
+    if (/(city|street|landmark|fort|temple|river|palace|market|beach|ghat|hill)/.test(alt)) {
+      score += 3;
+    }
+    if (photo?.width && photo?.height && photo.width >= photo.height) score += 2;
+    return score;
+  };
+
+  let bestPhoto = null;
+  let bestScore = -Infinity;
+  for (const candidate of candidates.map((value) => String(value || "").trim()).filter(Boolean)) {
+    const url = `https://api.pexels.com/v1/search?query=${encodeURIComponent(
+      candidate
+    )}&per_page=12&orientation=landscape`;
+    const response = await fetch(url, { headers: { Authorization: PEXELS_KEY } });
+    if (!response.ok) continue;
+    const data = await response.json();
+    const photos = Array.isArray(data?.photos) ? data.photos : [];
+    for (const photo of photos) {
+      if (!photo?.src) continue;
+      const score = scorePhoto(photo);
+      if (score > bestScore) {
+        bestScore = score;
+        bestPhoto = photo;
+      }
+    }
+    if (bestPhoto && bestScore >= 10) break;
+  }
+
+  const payload = {
+    image:
+      bestPhoto?.src?.large2x ||
+      bestPhoto?.src?.large ||
+      bestPhoto?.src?.landscape ||
+      bestPhoto?.src?.medium ||
+      bestPhoto?.src?.original ||
+      "",
+    photographer: bestPhoto?.photographer || "",
+    url: bestPhoto?.url || "",
+    alt: bestPhoto?.alt || "",
+    source: "pexels",
+  };
+  setPexelsCache(cacheKey, payload);
+  return payload.image || "";
+};
+
 const enrichSuggestionImages = async (suggestions) => {
   const withImages = await Promise.all(
     suggestions.map(async (item) => {
       const query = `${item.city} ${item.state}`.trim();
       const image =
+        (await fetchPexelsPhoto({
+          city: item.city,
+          query: item.pexelsQuery || item.wikipediaQuery || query,
+        })) ||
         (await fetchWikipediaImageForQuery(query)) ||
         (await fetchWikipediaImageForQuery(item.city)) ||
         "";
@@ -781,7 +948,7 @@ app.post("/api/destinations/suggest", async (req, res) => {
     let suggestions = requireAi ? [] : pickUniqueSuggestions(defaultDestinationSuggestions(), 4, previousCities);
     let aiSucceeded = false;
 
-    if (OPENAI_KEY) {
+    if (OPENAI_KEY && integrationHealth.openai.enabled) {
       for (let attempt = 0; attempt < 3 && !aiSucceeded; attempt += 1) {
         const randomNonce = Math.random().toString(36).slice(2, 10);
         const avoidLine = previousCities.length
@@ -799,8 +966,9 @@ app.post("/api/destinations/suggest", async (req, res) => {
           `Variation seed: ${randomNonce}`,
           avoidLine,
           "Return ONLY valid JSON with shape:",
-          '{"suggestions":[{"city":"...","state":"...","tagline":"...","mode":"Train|Bus|Cab","badges":["...","..."],"wikipediaQuery":"..."}]}',
+          '{"suggestions":[{"city":"...","state":"...","tagline":"...","mode":"Train|Bus|Cab","badges":["...","..."],"touristPlaces":["...","...","..."],"wikipediaQuery":"...","pexelsQuery":"..."}]}',
           "Keep tagline under 12 words. Keep wikipediaQuery as a city/place title.",
+          "touristPlaces must contain exactly 3 famous tourist places for each city.",
         ].join("\n");
 
         try {
@@ -824,7 +992,20 @@ app.post("/api/destinations/suggest", async (req, res) => {
             }),
           });
 
-          if (!response.ok) continue;
+          if (!response.ok) {
+            const detail = await response.text().catch(() => "");
+            if (
+              response.status === 401 &&
+              /incorrect api key|invalid api key/i.test(String(detail || ""))
+            ) {
+              disableIntegration(
+                "openai",
+                "OpenAI API key is invalid. Update OPENAI_API_KEY in .env."
+              );
+              break;
+            }
+            continue;
+          }
           const data = await response.json();
           const content = String(data?.choices?.[0]?.message?.content || "").trim();
           const parsed = parseFirstJsonObject(content);
@@ -844,38 +1025,35 @@ app.post("/api/destinations/suggest", async (req, res) => {
       }
     }
 
-    if (requireAi && !aiSucceeded) {
-      return res.status(200).json({
-        suggestions: [],
-        error: "AI suggestions unavailable right now. Please try again.",
-      });
+    if (!aiSucceeded) {
+      suggestions = pickUniqueSuggestions(defaultDestinationSuggestions(), 4, previousCities);
     }
 
     const suggestionsWithImages = await enrichSuggestionImages(suggestions);
     const completeWithImages = suggestionsWithImages.filter(
       (item) => String(item?.image || "").trim().length > 0
     );
-    if (requireAi && completeWithImages.length < 4) {
-      return res.status(200).json({
-        suggestions: [],
-        error:
-          "AI suggestions are available, but Wikipedia photos could not be loaded for all cards. Please retry.",
-      });
-    }
-    const payload = { suggestions: suggestionsWithImages };
+    const payload = {
+      suggestions: suggestionsWithImages,
+      aiUsed: aiSucceeded,
+      warning:
+        aiSucceeded && completeWithImages.length < 4
+          ? "Some destination photos could not be loaded."
+          : !aiSucceeded
+            ? "Showing fresh rotating destination picks while AI suggestions are unavailable."
+            : "",
+    };
     res.set("Cache-Control", "no-store");
     res.json(payload);
   } catch (error) {
     console.error("AI destination suggestion error:", error);
-    if (Boolean(req.body?.requireAi)) {
-      return res.status(200).json({
-        suggestions: [],
-        error: "AI suggestions unavailable right now. Please try again.",
-      });
-    }
     const fallback = await enrichSuggestionImages(shuffleList(defaultDestinationSuggestions()));
     res.set("Cache-Control", "no-store");
-    res.json({ suggestions: fallback });
+    res.json({
+      suggestions: fallback,
+      aiUsed: false,
+      warning: "Showing rotating fallback destination picks right now.",
+    });
   }
 });
 
@@ -900,6 +1078,8 @@ app.post("/api/newsletter", async (req, res) => {
           ? "Request accepted, but welcome email was not sent because EmailJS is not configured."
           : emailStatus === "non_browser_blocked"
             ? "Request accepted, but EmailJS is blocking server-side API calls. Enable non-browser/API access."
+            : emailStatus === "provider_reconnect_required"
+              ? "Request accepted, but EmailJS could not send because the connected Gmail account needs to be reconnected."
             : emailStatus === "template_not_found"
               ? "Request accepted, but EmailJS template ID is invalid or missing. Update EMAILJS_TEMPLATE_ID."
               : "Request accepted, but welcome email was not sent.";
@@ -918,6 +1098,10 @@ app.post("/api/newsletter", async (req, res) => {
           emailStatus = "not_configured";
         } else if (mailResult?.reason === "emailjs_non_browser_blocked") {
           emailStatus = "non_browser_blocked";
+        } else if (mailResult?.reason === "emailjs_temporarily_disabled") {
+          emailStatus = "provider_reconnect_required";
+        } else if (mailResult?.reason === "emailjs_provider_reconnect_required") {
+          emailStatus = "provider_reconnect_required";
         } else if (mailResult?.reason === "emailjs_template_not_found") {
           emailStatus = "template_not_found";
         }

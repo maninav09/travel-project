@@ -21,7 +21,14 @@ onReady(() => {
 
   const userAvatar = document.querySelector("[data-user-avatar]");
   const userName = document.querySelector("[data-user-name]");
+  const userChip = document.querySelector("[data-user-chip]");
+  const userAvatarTrigger = document.querySelector("[data-user-avatar-trigger]");
+  const userTrigger = document.querySelector("[data-user-trigger]");
+  const userMenu = document.querySelector("[data-user-menu]");
   const logoutBtn = document.querySelector("[data-logout]");
+  const lightbox = document.querySelector("[data-image-lightbox]");
+  const lightboxImg = document.querySelector("[data-lightbox-img]");
+  const lightboxClose = document.querySelector("[data-lightbox-close]");
   const greetingLine = document.querySelector("[data-user-greeting]");
 
   const slides = Array.from(document.querySelectorAll("[data-hero-slide]"));
@@ -125,6 +132,7 @@ onReady(() => {
       userAvatar.src = isLoggedIn && profileImage ? profileImage : "img/travel1.jpg";
     }
     if (logoutBtn) logoutBtn.style.display = isLoggedIn ? "inline-flex" : "none";
+    if (userChip) userChip.classList.toggle("is-logged-in", isLoggedIn);
     if (greetingLine) {
       greetingLine.textContent = isLoggedIn
         ? `Welcome back, ${name || "Traveler"}${lastRoute ? ` - Last route: ${lastRoute}` : ""}`
@@ -138,6 +146,45 @@ onReady(() => {
     });
   }
 
+  if (userAvatarTrigger) {
+    userAvatarTrigger.addEventListener("click", () => {
+      const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
+      const avatarSrc = String(userAvatar?.src || "").trim();
+      if (!isLoggedIn) {
+        window.location.href = "login.html";
+        return;
+      }
+      if (!lightbox || !lightboxImg || !avatarSrc) return;
+      lightboxImg.src = avatarSrc;
+      lightbox.classList.remove("is-hidden");
+    });
+  }
+
+  const closeUserMenu = () => {
+    if (!userChip || !userTrigger) return;
+    userChip.classList.remove("is-open");
+    userTrigger.setAttribute("aria-expanded", "false");
+  };
+
+  if (userTrigger) {
+    userTrigger.addEventListener("click", () => {
+      const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
+      if (!isLoggedIn) {
+        window.location.href = "login.html";
+        return;
+      }
+      const willOpen = !userChip?.classList.contains("is-open");
+      if (userChip) userChip.classList.toggle("is-open", willOpen);
+      userTrigger.setAttribute("aria-expanded", willOpen ? "true" : "false");
+    });
+  }
+
+  if (lightbox && lightboxClose) {
+    lightboxClose.addEventListener("click", () => {
+      lightbox.classList.add("is-hidden");
+    });
+  }
+
   if (logoutBtn) {
     logoutBtn.addEventListener("click", () => {
       localStorage.removeItem("isLoggedIn");
@@ -145,6 +192,7 @@ onReady(() => {
       localStorage.removeItem("userName");
       localStorage.removeItem("userProfileImage");
       setUserState();
+      closeUserMenu();
     });
   }
 
@@ -473,12 +521,15 @@ onReady(() => {
           throw new Error(data?.error || data?.message || `Request failed (${response.status})`);
         }
         const message = String(data?.message || "").trim();
+        const warning = String(data?.warning || "").trim();
         const isAlreadySubscribed = /already subscribed/i.test(message);
+        const isWarning = Boolean(warning) || data?.emailStatus === "failed";
         setNewsletterNote(
-          isAlreadySubscribed
-            ? message || "You are already subscribed. Welcome email sent again."
-            : "Subscribed successfully.",
-          false
+          message ||
+            (isAlreadySubscribed
+              ? "You are already subscribed. Welcome email sent again."
+              : "Subscribed successfully."),
+          isWarning
         );
         newsletterForm.reset();
         trackEvent("newsletter_subscribe", { status: "success" });
@@ -542,6 +593,7 @@ onReady(() => {
   let lastSuggestionSignature = "";
   let lastSuggestionCities = [];
   let exploredSuggestionCities = [];
+  let destinationSuggestionWarning = "";
 
   const trendingStorageKey = "trendingDestinations";
   const defaultTrending = [
@@ -575,6 +627,7 @@ onReady(() => {
     lastSuggestionSignature = "";
     lastSuggestionCities = [];
     destinationSuggestions = [];
+    destinationSuggestionWarning = "";
     exploredSuggestionCities = [];
     saveStoredTrending([]);
     renderTrendingCards();
@@ -866,23 +919,30 @@ onReady(() => {
           }),
         });
         const data = await response.json();
-        if (!response.ok) return [];
-        return Array.isArray(data?.suggestions) ? data.suggestions.slice(0, 4) : [];
+        if (!response.ok) return { suggestions: [], warning: "" };
+        return {
+          suggestions: Array.isArray(data?.suggestions) ? data.suggestions.slice(0, 4) : [],
+          warning: String(data?.warning || "").trim(),
+        };
       };
 
-      let nextSuggestions = await requestSuggestions();
+      let nextResult = await requestSuggestions();
+      let nextSuggestions = nextResult.suggestions;
       let nextSignature = suggestionsSignature(nextSuggestions);
       if (nextSuggestions.length && nextSignature === lastSuggestionSignature) {
-        const retrySuggestions = await requestSuggestions();
+        const retryResult = await requestSuggestions();
+        const retrySuggestions = retryResult.suggestions;
         const retrySignature = suggestionsSignature(retrySuggestions);
         if (retrySuggestions.length && retrySignature !== lastSuggestionSignature) {
           nextSuggestions = retrySuggestions;
           nextSignature = retrySignature;
+          nextResult = retryResult;
         }
       }
 
       if (nextSuggestions.length) {
         destinationSuggestions = nextSuggestions;
+        destinationSuggestionWarning = nextResult.warning;
         lastSuggestionSignature = nextSignature;
         lastSuggestionCities = nextSuggestions.map((item) => String(item.city || "").trim()).filter(Boolean);
         exploredSuggestionCities = Array.from(
@@ -891,6 +951,7 @@ onReady(() => {
       }
     } catch {
       destinationSuggestions = [];
+      destinationSuggestionWarning = "";
     }
   };
 
@@ -920,15 +981,33 @@ onReady(() => {
       return;
     }
     cards.forEach((item) => {
-      const badges = (item.badges || []).map((b) => `<span class="badge">${b}</span>`).join("");
+      const city = escapeHtml(item.city || "");
+      const state = escapeHtml(item.state || "India");
+      const mode = escapeHtml(item.mode || "Train");
+      const tagline = escapeHtml(item.tagline || "");
+      const image = escapeHtml(item.image || "");
+      const badges = (item.badges || [])
+        .map((b) => `<span class="badge">${escapeHtml(b)}</span>`)
+        .join("");
+      const touristPlaces = (Array.isArray(item.touristPlaces) ? item.touristPlaces : [])
+        .slice(0, 3)
+        .map((place) => `<li>${escapeHtml(place)}</li>`)
+        .join("");
       const card = document.createElement("button");
       card.type = "button";
       card.className = "suggestion-card";
       card.innerHTML = `
-        <div class="badge-row">${badges}</div>
-        <h3>${item.city}</h3>
-        <p>${item.tagline}</p>
-        <div class="suggestion-meta">${item.state} | Best by ${item.mode}</div>
+        <div class="suggestion-image-wrap">
+          <img class="suggestion-image" src="${image || "img/travel1.jpg"}" alt="${city} destination" loading="lazy" decoding="async" />
+          <div class="badge-row">${badges}</div>
+        </div>
+        <div class="suggestion-copy">
+          <h3>${city}</h3>
+          <p>${tagline}</p>
+          <div class="suggestion-meta">${state} | Best by ${mode}</div>
+          <div class="suggestion-spots-title">Tourist Places</div>
+          <ul class="suggestion-spots">${touristPlaces}</ul>
+        </div>
       `;
       card.addEventListener("click", () => {
         const fromInput = homeForm ? homeForm.querySelector('input[name="from"]') : null;
@@ -941,9 +1020,9 @@ onReady(() => {
         if (toInput) toInput.focus();
       });
       suggestionsGrid.appendChild(card);
-      const wikiImage = String(item.image || "").trim();
-      if (wikiImage) {
-        card.style.setProperty("--card-image", `url("${wikiImage}")`);
+      const resolvedImage = String(item.image || "").trim();
+      if (resolvedImage) {
+        card.style.setProperty("--card-image", `url("${resolvedImage}")`);
       }
     });
   };
@@ -1040,7 +1119,15 @@ onReady(() => {
       mainNav.classList.remove("is-open");
       navToggle.setAttribute("aria-expanded", "false");
     }
+    if (event.key === "Escape") closeUserMenu();
+    if (event.key === "Escape" && lightbox) lightbox.classList.add("is-hidden");
     if (event.key === "Escape") closeSuggestions();
+  });
+
+  document.addEventListener("click", (event) => {
+    if (!userChip || !userChip.classList.contains("is-open")) return;
+    if (userChip.contains(event.target)) return;
+    closeUserMenu();
   });
 
   const fetchRouteComparison = async ({ from, to, mode }) => {

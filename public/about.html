@@ -43,20 +43,11 @@
       <section class="planner" data-reveal>
         <div class="planner-head">
           <h2>About Us</h2>
-          <p>Built to reduce travel planning friction for domestic trips.</p>
         </div>
         <div class="quote">
-          <p>
-            Routes-connect combines route search, travel-mode comparison, and nearby recommendations into one clear
-            workflow for faster decisions.
-          </p>
-          <p>
-            We focus on practical planning: where to stay, what to visit, and which mode gives the best tradeoff.
-          </p>
         </div>
         <div class="quote">
           <h4>What we value</h4>
-          <p>Clarity, speed, trustable options, and better travel outcomes.</p>
         </div>
       </section>
     </main>
@@ -79,10 +70,11 @@
       </div>
       <div>
         <h4>Newsletter</h4>
-        <form class="newsletter" action="#" method="post">
-          <input type="email" placeholder="Email address" />
+        <form class="newsletter" action="#" method="post" data-newsletter-form>
+          <input type="email" name="email" placeholder="Email address" required />
           <button type="submit">Join</button>
         </form>
+        <p class="newsletter-note" data-newsletter-note aria-live="polite"></p>
       </div>
     </footer>
 

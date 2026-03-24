@@ -47,9 +47,26 @@
         </nav>
 
         <div class="user-chip" data-user-chip>
-          <img class="user-avatar" data-user-avatar alt="User profile" />
-          <span class="user-name" data-user-name>Guest</span>
-          <button class="user-logout" type="button" data-logout>Logout</button>
+          <button
+            class="user-avatar-trigger"
+            type="button"
+            data-user-avatar-trigger
+            aria-label="View profile image"
+          >
+            <img class="user-avatar" data-user-avatar alt="User profile" />
+          </button>
+          <button
+            class="user-trigger"
+            type="button"
+            data-user-trigger
+            aria-label="Open profile menu"
+            aria-expanded="false"
+          >
+            <span class="user-name" data-user-name>Guest</span>
+          </button>
+          <div class="user-menu" data-user-menu>
+            <button class="user-logout" type="button" data-logout>Logout</button>
+          </div>
         </div>
       </div>
     </header>
@@ -346,6 +363,13 @@
           <button class="close-btn" type="button" data-close-suggestions>Close</button>
         </div>
         <div class="suggestions-grid" data-suggestions-grid></div>
+      </div>
+    </div>
+
+    <div class="image-lightbox is-hidden" data-image-lightbox>
+      <div class="lightbox-backdrop" data-lightbox-close></div>
+      <div class="lightbox-card">
+        <img class="lightbox-img" data-lightbox-img alt="Profile image preview" />
       </div>
     </div>
 

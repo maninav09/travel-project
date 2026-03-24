@@ -43,30 +43,24 @@
       <section class="planner" data-reveal>
         <div class="planner-head">
           <h2>What You Can Do</h2>
-          <p>Everything is designed to reduce planning time and booking confusion.</p>
         </div>
         <article class="quote">
           <h4>Route Planning</h4>
-          <p>Compare train, bus, and cab routes with practical time and cost estimates.</p>
         </article>
         <article class="quote">
           <h4>City Discovery</h4>
-          <p>Get nearby famous places, hotels, and restaurants around your destination.</p>
         </article>
       </section>
 
       <section class="testimonials" data-reveal>
         <article class="quote">
           <h4>Trip Memory</h4>
-          <p>Save previous routes and leave personal reviews for better re-planning.</p>
         </article>
         <article class="quote">
           <h4>Shareable Trips</h4>
-          <p>Copy route links and share with friends or family in one click.</p>
         </article>
         <article class="quote">
           <h4>Weather Snapshot</h4>
-          <p>Check destination weather before finalizing your travel mode.</p>
         </article>
       </section>
     </main>
@@ -89,10 +83,11 @@
       </div>
       <div>
         <h4>Newsletter</h4>
-        <form class="newsletter" action="#" method="post">
-          <input type="email" placeholder="Email address" />
+        <form class="newsletter" action="#" method="post" data-newsletter-form>
+          <input type="email" name="email" placeholder="Email address" required />
           <button type="submit">Join</button>
         </form>
+        <p class="newsletter-note" data-newsletter-note aria-live="polite"></p>
       </div>
     </footer>
 

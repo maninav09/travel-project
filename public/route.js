@@ -56,9 +56,6 @@ const essentialsEmpty = document.querySelector("[data-essentials-empty]");
 const placeFilters = Array.from(document.querySelectorAll("[data-filter]"));
 const weatherBody = document.querySelector("[data-weather-body]");
 const shareBtn = document.querySelector("[data-share-btn]");
-const saveItineraryBtn = document.querySelector("[data-save-itinerary-btn]");
-const exportItineraryBtn = document.querySelector("[data-export-itinerary-btn]");
-const itineraryNote = document.querySelector("[data-itinerary-note]");
 const actionButtons = Array.from(document.querySelectorAll(".action-btn"));
 const placeReviewBox = document.querySelector("[data-place-review-box]");
 const placeReviewTitle = document.querySelector("[data-place-review-title]");
@@ -94,7 +91,6 @@ let isCabOpen = false;
 let currentPlaceFilter = "all";
 let currentWeatherSummary = "";
 let currentWeatherTemp = "";
-let currentShareCode = "";
 
 const apiBase = window.location.protocol === "file:" ? "http://127.0.0.1:5000" : "";
 const tripHistoryKey = "tripHistory";
@@ -120,12 +116,6 @@ const setJourneyStats = ({ mode, duration, weather } = {}) => {
   if (statMode && mode) statMode.textContent = `Mode: ${mode}`;
   if (statDuration && duration) statDuration.textContent = `Duration: ${duration}`;
   if (statWeather && weather) statWeather.textContent = `Weather: ${weather}`;
-};
-
-const setItineraryMessage = (text, isError = false) => {
-  if (!itineraryNote) return;
-  itineraryNote.textContent = text;
-  itineraryNote.classList.toggle("is-error", Boolean(isError));
 };
 
 const notifyTripReady = (title, body) => {
@@ -1878,15 +1868,12 @@ if (!requireLogin()) {
     .then((res) => res.json().then((data) => ({ ok: res.ok, data })))
     .then(({ ok, data }) => {
       if (!ok || !data?.itinerary) return;
-      currentShareCode = itineraryParam;
-      localStorage.setItem("lastItineraryShareCode", itineraryParam);
       const itinerary = data.itinerary;
       loadRoute(
         String(itinerary.from || fromParam || "").trim(),
         String(itinerary.to || toParam || "").trim(),
         String(itinerary.mode || modeParam || currentMode).trim()
       );
-      setItineraryMessage("Loaded shared itinerary.");
     })
     .catch(() => {});
 } else if (fromParam && toParam) {
@@ -1927,64 +1914,6 @@ if (shareBtn) {
       shareBtn.textContent = "Share this trip";
       setActiveAction(null);
     }, 1400);
-  });
-}
-
-if (saveItineraryBtn) {
-  saveItineraryBtn.addEventListener("click", async () => {
-    setActiveAction(saveItineraryBtn);
-    if (!currentFromCity || !currentCity) {
-      setItineraryMessage("Search a route first.", true);
-      setActiveAction(null);
-      return;
-    }
-    const userEmail = String(localStorage.getItem("userEmail") || "").trim().toLowerCase();
-    try {
-      const res = await fetch(`${apiBase}/api/enhancements/bookings/itinerary`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userEmail,
-          from: currentFromCity,
-          to: currentCity,
-          mode: currentRouteMode || currentMode,
-          days: 3,
-          budget: "mid-range",
-          notes: `Generated from route search on ${new Date().toLocaleString()}`,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || "Unable to save itinerary");
-      currentShareCode = String(data?.shareCode || "").trim();
-      if (currentShareCode) {
-        localStorage.setItem("lastItineraryShareCode", currentShareCode);
-      }
-      const shareText = data?.shareUrl ? ` Share: ${data.shareUrl}` : "";
-      setItineraryMessage(`Itinerary saved.${shareText}`);
-    } catch (error) {
-      setItineraryMessage(error.message || "Unable to save itinerary", true);
-    } finally {
-      setTimeout(() => setActiveAction(null), 400);
-    }
-  });
-}
-
-if (exportItineraryBtn) {
-  exportItineraryBtn.addEventListener("click", () => {
-    setActiveAction(exportItineraryBtn);
-    const code = currentShareCode || localStorage.getItem("lastItineraryShareCode") || "";
-    if (!code) {
-      setItineraryMessage("Save itinerary first, then export.");
-      setTimeout(() => setActiveAction(null), 500);
-      return;
-    }
-    window.open(
-      `${apiBase}/api/enhancements/bookings/itinerary/${encodeURIComponent(code)}/export`,
-      "_blank",
-      "noopener,noreferrer"
-    );
-    setItineraryMessage("Export started.");
-    setTimeout(() => setActiveAction(null), 500);
   });
 }
 
