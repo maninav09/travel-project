@@ -5,6 +5,10 @@ const path = require("path");
 const fs = require("fs");
 const mongoose = require("mongoose");
 const cors = require("cors");
+const {
+  disableMongo,
+  isMongoRequested,
+} = require("./services/mongoRuntime");
 
 /* ROUTES */
 const routeApi = require("./routes/routeAPI");
@@ -72,7 +76,6 @@ const GEOAPIFY_KEY = (
   process.env.GEOAPIFY_KEY ||
   ""
 ).trim();
-const USE_MONGO = process.env.USE_MONGO === "true";
 const GOOGLE_KEY = (process.env.GOOGLE_MAPS_API_KEY || "").trim();
 const PEXELS_KEY = (
   process.env.PEXELS_API_KEY ||
@@ -357,23 +360,38 @@ const sendNewsletterEmail = async ({ email, source }) => {
       response.status === 400 &&
       /template id not found/i.test(String(detail || ""))
     ) {
-      return { sent: false, reason: "emailjs_template_not_found" };
+      return {
+        sent: false,
+        reason: "emailjs_template_not_found",
+        detail: String(detail || "").trim(),
+      };
     }
     if (
       response.status === 403 &&
       /non-browser applications/i.test(String(detail || ""))
     ) {
-      return { sent: false, reason: "emailjs_non_browser_blocked" };
+      return {
+        sent: false,
+        reason: "emailjs_non_browser_blocked",
+        detail: String(detail || "").trim(),
+      };
     }
     if (
       /invalid grant/i.test(String(detail || "")) ||
       /reconnect your gmail account/i.test(String(detail || ""))
     ) {
+      const reconnectMessage =
+        String(detail || "").trim() ||
+        "Gmail provider authorization is invalid. Reconnect your Gmail account in EmailJS.";
       disableIntegration(
         "emailjs",
-        "Gmail provider authorization is invalid. Reconnect the EmailJS Gmail account."
+        reconnectMessage
       );
-      return { sent: false, reason: "emailjs_provider_reconnect_required" };
+      return {
+        sent: false,
+        reason: "emailjs_provider_reconnect_required",
+        detail: reconnectMessage,
+      };
     }
     throw new Error(
       `EmailJS send failed (${response.status})${detail ? `: ${detail}` : ""}`
@@ -431,6 +449,7 @@ app.post("/api/newsletter/debug", async (req, res) => {
           source,
           sent: Boolean(result?.sent),
           reason: result?.reason || "sent",
+          detail: String(result?.detail || "").trim() || undefined,
         },
       });
     } catch (error) {
@@ -1065,7 +1084,9 @@ app.post("/api/newsletter", async (req, res) => {
       return res.status(400).json({ error: "Please enter a valid email." });
     }
 
-    const buildSubscribeResponse = (emailStatus) => {
+    const buildSubscribeResponse = (emailResult = {}) => {
+      const emailStatus = String(emailResult?.status || "failed").trim();
+      const detail = String(emailResult?.detail || "").trim();
       if (emailStatus === "sent") {
         return res.status(200).json({
           message: "Subscribed successfully. Welcome email sent.",
@@ -1079,7 +1100,7 @@ app.post("/api/newsletter", async (req, res) => {
           : emailStatus === "non_browser_blocked"
             ? "Request accepted, but EmailJS is blocking server-side API calls. Enable non-browser/API access."
             : emailStatus === "provider_reconnect_required"
-              ? "Request accepted, but EmailJS could not send because the connected Gmail account needs to be reconnected."
+              ? "Request accepted, but EmailJS could not send because the connected Gmail account needs to be reconnected in EmailJS."
             : emailStatus === "template_not_found"
               ? "Request accepted, but EmailJS template ID is invalid or missing. Update EMAILJS_TEMPLATE_ID."
               : "Request accepted, but welcome email was not sent.";
@@ -1087,34 +1108,37 @@ app.post("/api/newsletter", async (req, res) => {
         message: warning,
         warning,
         emailStatus,
+        detail: detail || undefined,
       });
     };
 
     const sendWelcome = async () => {
-      let emailStatus = "sent";
+      const result = { status: "sent", detail: "" };
       try {
         const mailResult = await sendNewsletterEmail({ email, source });
         if (mailResult?.reason === "emailjs_not_configured") {
-          emailStatus = "not_configured";
+          result.status = "not_configured";
         } else if (mailResult?.reason === "emailjs_non_browser_blocked") {
-          emailStatus = "non_browser_blocked";
+          result.status = "non_browser_blocked";
         } else if (mailResult?.reason === "emailjs_temporarily_disabled") {
-          emailStatus = "provider_reconnect_required";
+          result.status = "provider_reconnect_required";
         } else if (mailResult?.reason === "emailjs_provider_reconnect_required") {
-          emailStatus = "provider_reconnect_required";
+          result.status = "provider_reconnect_required";
         } else if (mailResult?.reason === "emailjs_template_not_found") {
-          emailStatus = "template_not_found";
+          result.status = "template_not_found";
         }
+        result.detail = String(mailResult?.detail || "").trim();
       } catch (mailError) {
-        emailStatus = "failed";
+        result.status = "failed";
+        result.detail = String(mailError?.message || "").trim();
         console.warn("Newsletter email send warning:", mailError?.message || mailError);
       }
-      return emailStatus;
+      return result;
     };
 
     // Privacy mode: do not persist newsletter emails in DB or memory.
-    const emailStatus = await sendWelcome();
-    return buildSubscribeResponse(emailStatus);
+    const emailResult = await sendWelcome();
+    return buildSubscribeResponse(emailResult);
   } catch (error) {
     console.error("Newsletter subscribe error:", error);
     return res.status(500).json({ error: "Unable to subscribe right now." });
@@ -1202,7 +1226,7 @@ app.use((req, res) => {
 });
 
 /* ---------------- DATABASE ---------------- */
-if (USE_MONGO) {
+if (isMongoRequested()) {
   const mongoUri = process.env.MONGO_URI;
   const maxRetries = 5;
   const retryDelayMs = 2500;
@@ -1213,7 +1237,9 @@ if (USE_MONGO) {
       console.log("MongoDB connected");
     } catch (err) {
       const code = err?.code || "UNKNOWN";
-      const isSrvDnsError = code === "ECONNREFUSED" && err?.syscall === "querySrv";
+      const isSrvDnsError =
+        err?.syscall === "querySrv" ||
+        ["ECONNREFUSED", "ENOTFOUND", "ETIMEOUT", "ESERVFAIL"].includes(code);
       if (isSrvDnsError) {
         console.warn(
           `MongoDB SRV lookup failed (attempt ${attempt}/${maxRetries}). Retrying in ${retryDelayMs}ms...`
@@ -1225,7 +1251,10 @@ if (USE_MONGO) {
       if (attempt < maxRetries) {
         setTimeout(() => connectMongoWithRetry(attempt + 1), retryDelayMs);
       } else {
-        console.error("MongoDB connection failed after retries. Check internet/DNS and MONGO_URI.");
+        disableMongo(err?.message || "MongoDB unavailable");
+        console.error(
+          "MongoDB connection failed after retries. Falling back to in-memory mode."
+        );
       }
     }
   };

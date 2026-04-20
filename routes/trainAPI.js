@@ -1,6 +1,7 @@
 // Purpose: returns train options from live providers when available, otherwise local fallback data.
 const express = require("express");
 const Train = require("../models/train");
+const { isMongoEnabled } = require("../services/mongoRuntime");
 
 const trainNames = [
   "Rajdhani Express",
@@ -133,6 +134,24 @@ const fetchLiveTrains = async (from, to) => {
   }
 };
 
+const fetchStoredTrains = async (query) => {
+  if (!isMongoEnabled()) return [];
+  try {
+    return await Train.find(query).sort({ createdAt: -1 }).limit(12);
+  } catch {
+    return [];
+  }
+};
+
+const persistGeneratedTrains = async (generated) => {
+  if (!isMongoEnabled()) return generated;
+  try {
+    return await Train.insertMany(generated);
+  } catch {
+    return generated;
+  }
+};
+
 router.get("/", async (req, res) => {
   try {
     const from = String(req.query.from || "").trim();
@@ -160,16 +179,12 @@ router.get("/", async (req, res) => {
       fromCity: new RegExp(`^${from}$`, "i"),
       toCity: new RegExp(`^${to}$`, "i"),
     };
-    let trains = await Train.find(query).sort({ createdAt: -1 }).limit(12);
+    let trains = await fetchStoredTrains(query);
 
     let results = trains;
     if (!results.length) {
       const generated = generateTrainsForRoute(from, to, 8);
-      try {
-        results = await Train.insertMany(generated);
-      } catch {
-        results = generated;
-      }
+      results = await persistGeneratedTrains(generated);
     }
 
     const payload = { trains: results, source: "fallback" };
