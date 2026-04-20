@@ -7,10 +7,12 @@ const fs = require("fs");
 
 const User = require("../models/user");
 const Route = require("../models/route");
+const { isMongoEnabled } = require("../services/mongoRuntime");
 
 const router = express.Router();
 const signinAttempts = new Map();
 const resetTokens = new Map();
+const usersMemory = new Map();
 const SIGNIN_MAX_ATTEMPTS = 6;
 const SIGNIN_WINDOW_MS = 15 * 60 * 1000;
 const RESET_TOKEN_TTL_MS = 20 * 60 * 1000;
@@ -81,6 +83,21 @@ const upload = multer({
   },
 });
 
+const getMemoryUser = (email) => usersMemory.get(cleanEmail(email)) || null;
+
+const saveMemoryUser = (user) => {
+  const normalizedEmail = cleanEmail(user?.email);
+  if (!normalizedEmail) return null;
+  const nextUser = {
+    name: user?.name || "",
+    email: normalizedEmail,
+    passwordHash: user?.passwordHash || "",
+    profileImage: user?.profileImage || "",
+  };
+  usersMemory.set(normalizedEmail, nextUser);
+  return nextUser;
+};
+
 /* SIGNUP */
 router.post("/signup", (req, res, next) => {
   upload.single("profileImage")(req, res, (err) => {
@@ -104,9 +121,15 @@ router.post("/signup", (req, res, next) => {
       });
     }
 
-    const existing = await User.findOne({ email: normalizedEmail });
-    if (existing) {
-      return res.status(409).json({ error: "User already exists" });
+    if (!isMongoEnabled()) {
+      if (getMemoryUser(normalizedEmail)) {
+        return res.status(409).json({ error: "User already exists" });
+      }
+    } else {
+      const existing = await User.findOne({ email: normalizedEmail });
+      if (existing) {
+        return res.status(409).json({ error: "User already exists" });
+      }
     }
 
     let imageUrl = "";
@@ -119,12 +142,28 @@ router.post("/signup", (req, res, next) => {
 
     const passwordHash = await bcrypt.hash(password, 10);
 
-    await User.create({
+    const nextUser = {
       name: name || "",
       email: normalizedEmail,
       passwordHash,
       profileImage: imageUrl,
-    });
+    };
+
+    if (!isMongoEnabled()) {
+      if (getMemoryUser(normalizedEmail)) {
+        return res.status(409).json({ error: "User already exists" });
+      }
+      saveMemoryUser(nextUser);
+    } else {
+      try {
+        await User.create(nextUser);
+      } catch {
+        if (getMemoryUser(normalizedEmail)) {
+          return res.status(409).json({ error: "User already exists" });
+        }
+        saveMemoryUser(nextUser);
+      }
+    }
 
     return res.status(201).json({
       message: "Signup successful",
@@ -155,7 +194,16 @@ router.post("/signin", async (req, res) => {
       });
     }
 
-    const user = await User.findOne({ email: normalizedEmail });
+    let user = null;
+    if (!isMongoEnabled()) {
+      user = getMemoryUser(normalizedEmail);
+    } else {
+      try {
+        user = await User.findOne({ email: normalizedEmail });
+      } catch {
+        user = getMemoryUser(normalizedEmail);
+      }
+    }
     if (!user) {
       trackSigninFailure(attemptKey);
       return res.status(404).json({ error: "User not found. Please sign up." });
@@ -168,10 +216,17 @@ router.post("/signin", async (req, res) => {
     }
     clearSigninAttempts(attemptKey);
 
-    const routes = await Route.find({ userEmail: user.email })
-      .sort({ createdAt: -1 })
-      .limit(5)
-      .lean();
+    let routes = [];
+    if (isMongoEnabled()) {
+      try {
+        routes = await Route.find({ userEmail: user.email })
+          .sort({ createdAt: -1 })
+          .limit(5)
+          .lean();
+      } catch {
+        routes = [];
+      }
+    }
 
     return res.json({
       message: "Signin successful",
@@ -193,10 +248,14 @@ router.post("/password/request-reset", async (req, res) => {
     if (!email) return res.status(400).json({ error: "email is required" });
 
     let user = null;
-    try {
-      user = await User.findOne({ email }).lean();
-    } catch {
-      user = { email };
+    if (!isMongoEnabled()) {
+      user = getMemoryUser(email);
+    } else {
+      try {
+        user = await User.findOne({ email }).lean();
+      } catch {
+        user = { email };
+      }
     }
     if (!user) {
       return res.json({
@@ -244,11 +303,25 @@ router.post("/password/reset", async (req, res) => {
     }
 
     const passwordHash = await bcrypt.hash(newPassword, 10);
-    const user = await User.findOneAndUpdate(
-      { email },
-      { $set: { passwordHash } },
-      { new: true }
-    ).lean();
+    let user = null;
+    if (!isMongoEnabled()) {
+      const existing = getMemoryUser(email);
+      if (!existing) return res.status(404).json({ error: "User not found" });
+      user = saveMemoryUser({ ...existing, passwordHash });
+    } else {
+      try {
+        user = await User.findOneAndUpdate(
+          { email },
+          { $set: { passwordHash } },
+          { new: true }
+        ).lean();
+      } catch {
+        const existing = getMemoryUser(email);
+        if (existing) {
+          user = saveMemoryUser({ ...existing, passwordHash });
+        }
+      }
+    }
     if (!user) return res.status(404).json({ error: "User not found" });
 
     resetTokens.delete(email);

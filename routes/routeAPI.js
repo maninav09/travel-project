@@ -3,6 +3,7 @@
 const express = require("express");
 const axios = require("axios");
 const Route = require("../models/route");
+const { isMongoEnabled } = require("../services/mongoRuntime");
 
 const {
   ensureRoutes,
@@ -33,7 +34,6 @@ const GEOAPIFY_MATRIX_KEY = (
 ).trim();
 const OPENAI_KEY = process.env.OPENAI_API_KEY;
 const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
-const USE_MONGO = process.env.USE_MONGO === "true";
 const OPENAI_DISABLE_MS = 10 * 60 * 1000;
 const OPENAI_WARN_COOLDOWN_MS = 60 * 1000;
 let openaiDisabledUntil = 0;
@@ -381,7 +381,7 @@ const callOpenAIPlan = async ({ from, to, state, days, budget, interests, pace }
 router.get("/", async (req, res) => {
   try {
     const { mode, from, to } = req.query;
-    if (!USE_MONGO) {
+    if (!isMongoEnabled()) {
       if (!from || !to) return res.json({ routes: [] });
       const normalizedMode = normalizeMode(mode || "train");
       const prettyMode =
@@ -595,7 +595,7 @@ router.post("/explore", async (req, res) => {
 /* ---------- SAVE ROUTE ---------- */
 router.post("/", async (req, res) => {
   try {
-    if (!USE_MONGO) {
+    if (!isMongoEnabled()) {
       return res.status(201).json({ message: "Route saved (in-memory)", id: "local" });
     }
     const { mode, from, to, userEmail } = req.body;

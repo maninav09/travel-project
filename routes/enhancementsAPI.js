@@ -3,9 +3,9 @@ const express = require("express");
 const crypto = require("crypto");
 const User = require("../models/user");
 const Itinerary = require("../models/itinerary");
+const { isMongoEnabled } = require("../services/mongoRuntime");
 
 const router = express.Router();
-const USE_MONGO = process.env.USE_MONGO === "true";
 const APP_BASE_URL = (process.env.APP_BASE_URL || "").trim();
 
 const profileMemory = new Map();
@@ -55,7 +55,7 @@ router.get("/profile/:email", async (req, res) => {
     const email = cleanEmail(req.params.email);
     if (!email) return res.status(400).json({ error: "email is required" });
 
-    if (!USE_MONGO) {
+    if (!isMongoEnabled()) {
       const fallback = profileMemory.get(email) || {};
       return res.json({
         profile: {
@@ -103,7 +103,7 @@ router.put("/profile/preferences", async (req, res) => {
     if (!email) return res.status(400).json({ error: "email is required" });
     const preferences = sanitizePreferences(req.body?.preferences || {});
 
-    if (!USE_MONGO) {
+    if (!isMongoEnabled()) {
       const current = profileMemory.get(email) || {};
       profileMemory.set(email, { ...current, preferences });
       return res.json({ ok: true, preferences });
@@ -144,7 +144,7 @@ router.post("/bookings/itinerary", async (req, res) => {
     const shareCode = crypto.randomBytes(6).toString("hex");
     const payload = { shareCode, userEmail, from, to, mode, days, budget, notes };
 
-    if (USE_MONGO) {
+    if (isMongoEnabled()) {
       try {
         await Itinerary.create(payload);
       } catch {
@@ -172,7 +172,7 @@ router.get("/bookings/itinerary/:shareCode", async (req, res) => {
     if (!shareCode) return res.status(400).json({ error: "shareCode is required" });
 
     let itinerary = null;
-    if (USE_MONGO) {
+    if (isMongoEnabled()) {
       try {
         itinerary = await Itinerary.findOne({ shareCode }).lean();
       } catch {
@@ -195,7 +195,7 @@ router.get("/bookings/itinerary/:shareCode/export", async (req, res) => {
     if (!shareCode) return res.status(400).json({ error: "shareCode is required" });
 
     let itinerary = null;
-    if (USE_MONGO) {
+    if (isMongoEnabled()) {
       try {
         itinerary = await Itinerary.findOne({ shareCode }).lean();
       } catch {

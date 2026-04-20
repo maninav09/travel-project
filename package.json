@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node server.js",
+    "build:exe": "powershell -ExecutionPolicy Bypass -File scripts/build-launcher.ps1",
     "seed": "node scripts/seedTrains.js",
     "seed:trains": "node scripts/seedTrains.js",
     "test": "node --test tests/*.test.js"
@@ -19,6 +20,7 @@
     "cors": "^2.8.6",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
+    "mongodb": "^7.1.1",
     "mongoose": "^9.1.6",
     "multer": "^2.0.2"
   },
