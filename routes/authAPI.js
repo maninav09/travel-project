@@ -59,7 +59,7 @@ const clearSigninAttempts = (key) => {
   signinAttempts.delete(key);
 };
 
-const uploadDir = path.join(__dirname, "../../public/uploads");
+const uploadDir = path.join(__dirname, "../public/uploads");
 fs.mkdirSync(uploadDir, { recursive: true });
 
 const storage = multer.diskStorage({

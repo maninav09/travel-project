@@ -8,7 +8,8 @@
     "build:exe": "powershell -ExecutionPolicy Bypass -File scripts/build-launcher.ps1",
     "seed": "node scripts/seedTrains.js",
     "seed:trains": "node scripts/seedTrains.js",
-    "test": "node --test tests/*.test.js"
+    "test": "node tests/run-tests.js",
+    "test:node": "node --test tests/*.test.js"
   },
   "keywords": [],
   "author": "",
