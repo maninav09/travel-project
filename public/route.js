@@ -995,6 +995,47 @@ const renderStory = ({ from, to, mode, durations }) => {
   `;
 };
 
+const showFlightComingSoon = ({ from = "", to = "" } = {}) => {
+  const routeLabel =
+    from && to ? `${escapeHtml(from)} to ${escapeHtml(to)}` : "this trip";
+  const message =
+    "Flight route support is not connected yet. We will add this in a future update by linking trusted third-party flight route services for live availability and pricing.";
+
+  currentRoute = null;
+  currentRouteMode = "Flight";
+  currentDurations = {};
+
+  if (summaryBox) {
+    summaryBox.innerHTML = `
+      <h3>Flight Mode</h3>
+      <p><strong>Route:</strong> ${routeLabel}</p>
+      <p>${message}</p>
+    `;
+  }
+
+  if (costBody) {
+    costBody.innerHTML =
+      "Flight comparison is coming soon. Once third-party flight providers are connected, live route details will appear here.";
+  }
+
+  if (storyBox) {
+    storyBox.innerHTML = `
+      <div class="story-title">Flight Update</div>
+      <p>${message}</p>
+      <p>For now, you can continue using Train, Bus, or Cab for route planning on this page.</p>
+    `;
+  }
+
+  if (mapNote) {
+    mapNote.textContent = "Flight routes will be available in a future update.";
+  }
+
+  setJourneyStats({ mode: "Flight", duration: "Coming soon" });
+  setTrainOpen(false);
+  setBusOpen(false);
+  setCabOpen(false);
+};
+
 
 const loadRoute = async (from, to, mode) => {
   if (!from || !to) return;
@@ -1787,6 +1828,10 @@ modeButtons.forEach((button) => {
     });
     setJourneyStats({ mode: currentMode });
     currentRouteMode = currentMode;
+    if (currentMode === "Flight") {
+      showFlightComingSoon({ from: currentFromCity, to: currentCity });
+      return;
+    }
     if (currentFromCity && currentCity) {
       loadRoute(currentFromCity, currentCity, currentMode);
     }

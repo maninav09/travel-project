@@ -19,9 +19,11 @@
   --surface-strong: #edf6f4;
   --stroke: rgba(17, 38, 35, 0.16);
   --shadow: 0 20px 60px rgba(15, 45, 41, 0.14);
-  --bg: radial-gradient(circle at 12% -10%, #fddfbb 0%, transparent 36%),
-    radial-gradient(circle at 92% 12%, #9de1db 0%, transparent 38%),
-    linear-gradient(165deg, #fdf8f2 0%, #f4f9f8 50%, #ebf3f0 100%);
+  --bg:
+    radial-gradient(circle at 12% -10%, rgba(253, 223, 187, 0.95) 0%, transparent 36%),
+    radial-gradient(circle at 92% 12%, rgba(157, 225, 219, 0.9) 0%, transparent 38%),
+    radial-gradient(circle at 74% 74%, rgba(132, 177, 255, 0.26) 0%, transparent 30%),
+    linear-gradient(165deg, #fffaf4 0%, #f4fbfa 46%, #e8f1ef 100%);
 }
 
 body[data-theme="dark"] {
@@ -42,8 +44,10 @@ body[data-theme="dark"] {
   --edge-glow-b: rgba(255, 92, 92, 0.42);
   --edge-glow-c: rgba(255, 36, 36, 0.34);
   --edge-stroke: rgba(255, 255, 255, 0.18);
-  --bg: radial-gradient(circle at 14% 0%, rgba(255, 177, 95, 0.25) 0%, transparent 32%),
+  --bg:
+    radial-gradient(circle at 14% 0%, rgba(255, 177, 95, 0.25) 0%, transparent 32%),
     radial-gradient(circle at 88% 10%, rgba(107, 231, 217, 0.2) 0%, transparent 34%),
+    radial-gradient(circle at 76% 76%, rgba(106, 153, 255, 0.16) 0%, transparent 30%),
     linear-gradient(165deg, #071116 0%, #0c1b21 44%, #10232b 100%);
 }
 
@@ -68,13 +72,16 @@ body {
 }
 
 .bg-layer-a {
-  background: conic-gradient(from 120deg at 30% 20%, rgba(221, 122, 50, 0.2), transparent 42%, rgba(15, 118, 110, 0.16), transparent 76%);
-  animation: rotateDrift 26s linear infinite;
+  background:
+    conic-gradient(from 120deg at 30% 20%, rgba(221, 122, 50, 0.24), transparent 40%, rgba(15, 118, 110, 0.18), transparent 72%, rgba(74, 109, 255, 0.14), transparent 92%);
+  animation: rotateDrift 28s linear infinite;
 }
 
 .bg-layer-b {
-  background: radial-gradient(circle at 72% 72%, rgba(15, 118, 110, 0.2), transparent 44%),
-    radial-gradient(circle at 28% 70%, rgba(221, 122, 50, 0.2), transparent 46%);
+  background:
+    radial-gradient(circle at 72% 72%, rgba(15, 118, 110, 0.22), transparent 44%),
+    radial-gradient(circle at 28% 70%, rgba(221, 122, 50, 0.24), transparent 46%),
+    radial-gradient(circle at 58% 24%, rgba(92, 132, 255, 0.16), transparent 32%);
   animation: breathe 8.6s ease-in-out infinite;
   z-index: -2;
 }
@@ -84,11 +91,11 @@ body {
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  opacity: 0.2;
+  opacity: 0.24;
   background-image: linear-gradient(to right, rgba(15, 118, 110, 0.1) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(15, 118, 110, 0.08) 1px, transparent 1px);
-  background-size: 48px 48px;
-  mask-image: radial-gradient(circle at center, black 28%, transparent 88%);
+  background-size: 46px 46px;
+  mask-image: radial-gradient(circle at center, black 34%, transparent 90%);
 }
 
 @keyframes rotateDrift {

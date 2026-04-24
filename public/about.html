@@ -1,11 +1,12 @@
 <!doctype html>
-<!-- Purpose: brand and product story page for the travel project. -->
+<!-- Purpose: brand story, mission, and product direction page for Routes-connect. -->
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>About | Routes-connect</title>
     <link rel="icon" type="image/png" href="img/flight(1).png?v=11" />
+    <link rel="apple-touch-icon" href="img/flight(1).png?v=11" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -14,7 +15,7 @@
     />
     <link rel="stylesheet" href="style.css" />
   </head>
-  <body>
+  <body class="home-page">
     <header class="site-header is-scrolled" data-site-header>
       <div class="nav-shell">
         <a class="brand" href="index.html">
@@ -24,30 +25,108 @@
             <small>Plan. Explore. Remember.</small>
           </span>
         </a>
-        <button class="nav-toggle" type="button" data-nav-toggle aria-label="Open menu">
+        <button class="nav-toggle" type="button" data-nav-toggle aria-label="Open menu" aria-controls="main-nav" aria-expanded="false">
           <span></span><span></span><span></span>
         </button>
-        <nav class="main-nav" data-main-nav aria-label="Primary">
+        <nav class="main-nav" id="main-nav" data-main-nav aria-label="Primary">
           <a class="nav-link" href="index.html">Home</a>
           <a class="nav-link active" href="about.html">About</a>
           <a class="nav-link" href="services.html">Services</a>
           <a class="nav-link" href="login.html">Login / Signup</a>
         </nav>
         <div class="user-chip">
-          <span class="user-name">Routes-connect</span>
+          <span class="user-name">About Routes-connect</span>
         </div>
       </div>
     </header>
 
     <main>
-      <section class="planner" data-reveal>
-        <div class="planner-head">
-          <h2>About Us</h2>
+      <section class="page-hero" data-reveal>
+        <div class="page-hero-copy">
+          <p class="eyebrow">About Us</p>
+          <h1>We built Routes-connect to make travel planning feel clear, practical, and enjoyable.</h1>
+          <p class="lead">
+            Instead of jumping between tabs for maps, stays, weather, trip ideas, and transport options, Routes-connect brings
+            everything into one simple planning flow.
+          </p>
         </div>
-        <div class="quote">
+        <div class="page-hero-card">
+          <p class="stat-label">Why it matters</p>
+          <h3>Less searching. Better trips.</h3>
+          <p>
+            Our goal is to help travelers compare routes faster, discover useful places nearby, and keep every trip in one place
+            they can revisit later.
+          </p>
         </div>
-        <div class="quote">
-          <h4>What we value</h4>
+      </section>
+
+      <section class="page-grid page-grid-two" data-reveal>
+        <article class="info-card">
+          <p class="card-kicker">Our Mission</p>
+          <h2>Smarter decisions before the journey begins</h2>
+          <p>
+            Routes-connect is designed for travelers who want more than a route line on a map. We focus on the real choices people
+            make before leaving home: which mode to take, what it may cost, what the weather looks like, and where to stop along
+            the way.
+          </p>
+        </article>
+        <article class="info-card">
+          <p class="card-kicker">Our Vision</p>
+          <h2>A connected travel dashboard for every trip</h2>
+          <p>
+            We want this platform to become a dependable trip companion that combines route intelligence, local discovery, planning
+            tools, memory features, and future live integrations into one smooth experience.
+          </p>
+        </article>
+      </section>
+
+      <section class="feature-showcase" data-reveal>
+        <div class="section-head">
+          <h2>What We Value</h2>
+          <p>The ideas shaping the product behind the interface.</p>
+        </div>
+        <div class="feature-grid">
+          <article class="feature-card">
+            <span>01</span>
+            <h3>Clarity first</h3>
+            <p>Travel planning should reduce confusion, not create more of it. We prefer clean choices and useful summaries.</p>
+          </article>
+          <article class="feature-card">
+            <span>02</span>
+            <h3>Useful discovery</h3>
+            <p>Hotels, restaurants, famous places, and hidden gems should support the route instead of distracting from it.</p>
+          </article>
+          <article class="feature-card">
+            <span>03</span>
+            <h3>Real trip memory</h3>
+            <p>Saved routes, reviews, and repeat planning matter because most travelers revisit the same decisions often.</p>
+          </article>
+          <article class="feature-card">
+            <span>04</span>
+            <h3>Future-ready tools</h3>
+            <p>We are building toward stronger integrations, better insights, and richer transport support over time.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="timeline-panel" data-reveal>
+        <div class="section-head">
+          <h2>How The Platform Helps</h2>
+          <p>A simple flow from search to trip action.</p>
+        </div>
+        <div class="timeline-list">
+          <article class="timeline-item">
+            <strong>Search and compare</strong>
+            <p>Choose cities, compare train, bus, and cab routes, and understand travel time before moving forward.</p>
+          </article>
+          <article class="timeline-item">
+            <strong>Explore the destination</strong>
+            <p>Open route-level information like places, hotels, food corners, hidden gems, and weather snapshots.</p>
+          </article>
+          <article class="timeline-item">
+            <strong>Plan with confidence</strong>
+            <p>Use AI trip planning, budget tools, safety notes, and reviews to organize a fuller and better trip.</p>
+          </article>
         </div>
       </section>
     </main>
@@ -82,10 +161,8 @@
       <span class="floating-orb"></span>
       <span class="floating-label">Theme</span>
     </button>
+
     <script src="script.js"></script>
     <script src="theme.js"></script>
   </body>
 </html>
-
-
-

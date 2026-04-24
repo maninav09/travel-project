@@ -1,11 +1,12 @@
 <!doctype html>
-<!-- Purpose: overview page for the app's travel planning services and feature highlights. -->
+<!-- Purpose: travel planning services and feature overview page for Routes-connect. -->
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Services | Routes-connect</title>
     <link rel="icon" type="image/png" href="img/flight(1).png?v=11" />
+    <link rel="apple-touch-icon" href="img/flight(1).png?v=11" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -14,7 +15,7 @@
     />
     <link rel="stylesheet" href="style.css" />
   </head>
-  <body>
+  <body class="home-page">
     <header class="site-header is-scrolled" data-site-header>
       <div class="nav-shell">
         <a class="brand" href="index.html">
@@ -24,44 +25,107 @@
             <small>Plan. Explore. Remember.</small>
           </span>
         </a>
-        <button class="nav-toggle" type="button" data-nav-toggle aria-label="Open menu">
+        <button class="nav-toggle" type="button" data-nav-toggle aria-label="Open menu" aria-controls="main-nav" aria-expanded="false">
           <span></span><span></span><span></span>
         </button>
-        <nav class="main-nav" data-main-nav aria-label="Primary">
+        <nav class="main-nav" id="main-nav" data-main-nav aria-label="Primary">
           <a class="nav-link" href="index.html">Home</a>
           <a class="nav-link" href="about.html">About</a>
           <a class="nav-link active" href="services.html">Services</a>
           <a class="nav-link" href="login.html">Login / Signup</a>
         </nav>
         <div class="user-chip">
-          <span class="user-name">Services</span>
+          <span class="user-name">Travel Services</span>
         </div>
       </div>
     </header>
 
     <main>
-      <section class="planner" data-reveal>
-        <div class="planner-head">
-          <h2>What You Can Do</h2>
+      <section class="page-hero" data-reveal>
+        <div class="page-hero-copy">
+          <p class="eyebrow">Services</p>
+          <h1>Everything needed to compare routes, explore cities, and organize a better trip.</h1>
+          <p class="lead">
+            Routes-connect combines route planning, destination discovery, decision support, and memory tools into one travel
+            workflow built for practical use.
+          </p>
         </div>
-        <article class="quote">
-          <h4>Route Planning</h4>
+        <div class="page-hero-card">
+          <p class="stat-label">Core promise</p>
+          <h3>One place for route planning</h3>
+          <p>
+            Instead of scattered apps and tabs, you get transport comparison, destination details, planning tools, and future-ready
+            service expansion in a single product.
+          </p>
+        </div>
+      </section>
+
+      <section class="feature-showcase" data-reveal>
+        <div class="section-head">
+          <h2>Main Services</h2>
+          <p>The strongest features currently available on the platform.</p>
+        </div>
+        <div class="feature-grid">
+          <article class="feature-card">
+            <span>01</span>
+            <h3>Route Comparison</h3>
+            <p>Compare train, bus, and cab choices with route summaries, duration guidance, and cost-style estimates.</p>
+          </article>
+          <article class="feature-card">
+            <span>02</span>
+            <h3>Destination Discovery</h3>
+            <p>Find nearby hotels, restaurants, famous places, and hidden gems connected to your route and destination.</p>
+          </article>
+          <article class="feature-card">
+            <span>03</span>
+            <h3>Trip Planning Tools</h3>
+            <p>Use AI trip plans, budget splitting, weather snapshots, and safety guidance to prepare with more confidence.</p>
+          </article>
+          <article class="feature-card">
+            <span>04</span>
+            <h3>Saved Travel Memory</h3>
+            <p>Reuse saved routes, track trip history, add reviews, and share trip links with fewer repeated steps.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="page-grid page-grid-three" data-reveal>
+        <article class="info-card">
+          <p class="card-kicker">Planning</p>
+          <h2>Route, mode, and cost context</h2>
+          <p>Quickly understand where you are going, which transport mode fits best, and how long the journey may take.</p>
         </article>
-        <article class="quote">
-          <h4>City Discovery</h4>
+        <article class="info-card">
+          <p class="card-kicker">Exploration</p>
+          <h2>Local places around the destination</h2>
+          <p>Move from transport planning into useful local discovery without starting over in a different app.</p>
+        </article>
+        <article class="info-card">
+          <p class="card-kicker">Support</p>
+          <h2>Helpful tools before departure</h2>
+          <p>Weather, safety, AI itinerary help, and budget planning make the trip page more than a simple route result.</p>
         </article>
       </section>
 
-      <section class="testimonials" data-reveal>
-        <article class="quote">
-          <h4>Trip Memory</h4>
-        </article>
-        <article class="quote">
-          <h4>Shareable Trips</h4>
-        </article>
-        <article class="quote">
-          <h4>Weather Snapshot</h4>
-        </article>
+      <section class="timeline-panel" data-reveal>
+        <div class="section-head">
+          <h2>What’s Coming Next</h2>
+          <p>Features we can expand with stronger live integrations.</p>
+        </div>
+        <div class="timeline-list">
+          <article class="timeline-item">
+            <strong>Flight route support</strong>
+            <p>Flight search and comparison can be connected in the future through trusted third-party route and pricing services.</p>
+          </article>
+          <article class="timeline-item">
+            <strong>Live booking-linked data</strong>
+            <p>More detailed provider results, live availability, and stronger transport-specific cards can be added over time.</p>
+          </article>
+          <article class="timeline-item">
+            <strong>Deeper travel intelligence</strong>
+            <p>Smarter recommendations, richer route insights, and more personalized planning flows are natural next steps.</p>
+          </article>
+        </div>
       </section>
     </main>
 
@@ -95,10 +159,8 @@
       <span class="floating-orb"></span>
       <span class="floating-label">Theme</span>
     </button>
+
     <script src="script.js"></script>
     <script src="theme.js"></script>
   </body>
 </html>
-
-
-
